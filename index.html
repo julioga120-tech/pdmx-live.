@@ -750,15 +750,15 @@ button,input{font:inherit;color:inherit}
         const dl = sv.reduce((a, v) => a + (v > 0 ? v : 0), 0) - ref;
         if (done) {
           const predPos = 1 + out.filter((x) => x !== r && x.p.best && x.p.best < pred).length;
-          const c = pred <= ob ? "ob" : dl < 0 ? "pb" : "yl";
-          extra = `<div class="pred ${c}">${dl < 0 ? "−" : "+"}${Math.abs(dl).toFixed(3)} · EST. P${predPos}</div>`;
+          const c = pred <= ob ? "ob" : dl <= 0.0005 ? "pb" : "yl";
+          extra = `<div class="pred ${c}">${dl < -0.0005 ? "−" : "+"}${Math.abs(dl).toFixed(3)} · EST. P${predPos}</div>`;
         }
       }
       const secs = sv.map((v, i) => `<div class="sec ${secCls(v, r.p.s[i], st.best.s[i])}"><i>S${i + 1}</i>${fs(v)}${msHTML(segs[i])}</div>`).join("") + extra;
       const cls = ["row"]; if (r.n === fav) cls.push("fav");
       if (quali && r.pos > alive && r.pos < 99) cls.push("out"); else if (quali && ph < 3 && r.pos > safe && r.pos < 99) cls.push("danger");
       const nm = dens === "compact" ? `${esc(d.name_acronym || "")} <span style="font-weight:600;color:var(--mut);font-size:12px">${esc(dname(d))}</span>` : esc(dname(d));
-      h += `<div data-n="${r.n}" class="${cls.join(" ")}" style="--team:${esc(col)}"><div class="p">${r.pos < 99 ? r.pos : "–"}</div><div class="bar"></div><div class="nm"><b>${nm}${gd}${dens === "compact" ? tg : ""}</b><small>${tg}${r.cutTxt ? r.cutTxt.replace(/<\/?small[^>]*>/g, (m) => (m.startsWith("</") ? "</span>" : m.replace("small", "span"))) : `<span>${esc(d.team_name || "")}</span>`}${r.tyre ? `<span>· ${r.tyre} ${r.age}V</span>` : ""}${race ? "" : `<span>· ${r.nLaps} V</span>`}</small></div>${a}${b}${ty}<div class="secs">${secs}</div></div>`;
+      h += `<div data-n="${r.n}" class="${cls.join(" ")}" style="--team:${esc(col)}"><div class="p">${r.pos < 99 ? r.pos : "–"}</div><div class="bar"></div><div class="nm"><b>${nm}${gd}${dens === "compact" ? tg : ""}</b><small>${tg}${r.cutTxt ? r.cutTxt.replace(/<\/?small[^>]*>/g, (m) => (m.startsWith("</") ? "</span>" : m.replace("small", "span"))) : `<span>${esc(d.team_name || "")}</span>`}${r.tyre ? `<span>· LLANTA ${r.age}V</span>` : ""}</small></div>${a}${b}${ty}<div class="secs">${secs}</div></div>`;
     }
     $("rows").innerHTML = h || '<div class="empty">Sin datos todavía</div>';
   }
