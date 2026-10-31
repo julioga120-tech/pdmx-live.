@@ -23,7 +23,7 @@ button,input{font:inherit;color:inherit}
 .brand{font-weight:800;letter-spacing:1.4px;font-size:12px;color:var(--cyan);white-space:nowrap}
 .dot{width:8px;height:8px;border-radius:50%;background:var(--mut);flex:none}
 .dot.ok{background:var(--green);box-shadow:0 0 8px var(--green)}.dot.warn{background:var(--yellow)}.dot.err{background:var(--red)}
-.st{font-size:11px;font-weight:700;color:var(--mut);letter-spacing:.6px;margin-left:auto;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.st{font-size:10px;font-weight:700;color:var(--mut);letter-spacing:.3px;margin-left:auto;min-width:0;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .gear{all:unset;cursor:pointer;width:28px;height:24px;display:grid;place-items:center;color:var(--mut)}
 .gear svg{width:18px;height:18px}
 .r2{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;margin-top:4px}
@@ -78,6 +78,16 @@ button,input{font:inherit;color:inherit}
 .m48{background:var(--yellow)!important}.m49{background:var(--green)!important}.m51{background:var(--purple)!important}.m64{background:#1688ff!important}
 .sec.ob,.sec.pb,.sec.yl{color:#fff!important}
 .sec.ob i{color:var(--purple)}.sec.pb i{color:var(--green)}.sec.yl i{color:var(--yellow)}
+.pred{font-size:11px;font-weight:800;align-self:center;white-space:nowrap;text-align:right}
+.cutc{font-size:11px;font-weight:800;color:var(--orange)}
+.vs{width:100%;border-collapse:collapse;font-size:13px}
+.vs td{padding:6px 10px;border-bottom:1px solid var(--line2);font-weight:700}
+.vs td:last-child{text-align:right}
+.vs tr.me td{background:#062330;color:var(--cyan)}
+.mrow{display:grid;grid-template-columns:40px 1fr;gap:6px;align-items:center;padding:3px 12px}
+.mrow b{font-size:12px;font-weight:800}
+.mrow .msbig{padding:0;gap:1px}
+.mrow .msbig span{height:9px}
 .spd{font-size:11px;font-weight:700;color:var(--mut);align-self:center;white-space:nowrap}
 /* tarjetas */
 .pad{padding:12px}
@@ -193,7 +203,7 @@ button,input{font:inherit;color:inherit}
 </head>
 <body>
 <header class="top">
-  <div class="r1"><span class="brand">PURÉ DRIVING MX · LIVE TIMING</span><span class="st" id="st">—</span><span class="dot" id="dot"></span>
+  <div class="r1"><span class="brand">PURÉ DRIVING MX</span><span class="st" id="st">—</span><span class="dot" id="dot"></span>
     <button class="gear" id="fsb" aria-label="Pantalla completa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
     <button class="gear" id="gear" aria-label="Ajustes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button></div>
   <div class="r2">
@@ -553,6 +563,18 @@ button,input{font:inherit;color:inherit}
     for (const m of S.rc) if (m.qualifying_phase && m.qualifying_phase > ph) { ph = m.qualifying_phase; start = m.date; }
     return { ph: ph || 1, start };
   }
+  function phaseStarts() {
+    const st = {};
+    for (const m of S.rc) { const ph = m.qualifying_phase; if (ph && !st[ph] && /GREEN LIGHT/i.test(m.message || "")) st[ph] = m.date; }
+    for (const m of S.rc) { const ph = m.qualifying_phase; if (ph && !st[ph]) st[ph] = m.date; }
+    return st;
+  }
+  function lapPhase(l, st) { let ph = 1; for (const k of [2, 3]) if (st[k] && l.date_start >= st[k]) ph = k; return ph; }
+  function overtakeMode() {
+    let on = null;
+    for (const m of S.rc) { const t = (m.message || "").toUpperCase(); if (/OVERTAKE MODE ENABLED|DRS ENABLED/.test(t)) on = true; else if (/OVERTAKE MODE DISABLED|DRS DISABLED/.test(t)) on = false; }
+    return on;
+  }
   function trackState() {
     let st = "green", txt = "PISTA VERDE", sector = 0;
     const yel = new Map();
@@ -671,6 +693,8 @@ button,input{font:inherit;color:inherit}
     $("flag").className = "flag " + (ts.st === "green" ? "" : ts.st); $("flag").textContent = ts.txt;
     tickClock();
     const w = S.wx;
+    const om = isRace() ? overtakeMode() : null;
+    if (om != null) $("flag").textContent = ts.txt + (om ? " · OVERTAKE MODE ✓" : " · OVERTAKE MODE ✗");
     $("wx").innerHTML = w ? `<span>AIRE <b>${Math.round(w.air_temperature)}°</b> · PISTA <b>${Math.round(w.track_temperature)}°</b></span><span>${w.rainfall ? '<b style="color:var(--cyan)">LLUVIA</b>' : "SIN LLUVIA"} · VIENTO <b>${Math.round((w.wind_speed || 0) * 3.6)}</b> km/h</span>` : "";
     renderTower(); renderLaps(); renderRC(); renderChips(); renderInfo(); renderChamp();
     if (openN) renderSheet(openN);
@@ -687,9 +711,11 @@ button,input{font:inherit;color:inherit}
     const ph = quali ? qPhase().ph : 0;
     const safe = ph === 1 ? N - 6 : ph === 2 ? N - 12 : 10;
     const alive = ph === 1 ? N : ph === 2 ? N - 6 : N - 12;
-    let h = "";
+    let h = "", prevBest = 0;
+    const cutRow = quali && ph < 3 ? out.find((x) => x.pos === safe) : null;
+    const cutT = cutRow && cutRow.p.best ? cutRow.p.best : 0;
     for (const r of out) {
-      if (quali && ph < 3 && r.pos === safe + 1) h += `<div class="cut">ZONA DE ELIMINACIÓN · Q${ph}</div>`;
+      if (quali && ph < 3 && r.pos === safe + 1) h += `<div class="cut">ZONA DE ELIMINACIÓN · Q${ph}${cutT ? ` · CORTE ${fmt(cutT)} (${esc(cutRow.d.name_acronym || "")})` : ""}</div>`;
       if (quali && ph > 1 && r.pos === alive + 1) h += `<div class="cut red">ELIMINADOS</div>`;
       const d = r.d, col = "#" + (d.team_colour || "888");
       const tg = r.tag === "pit" ? '<span class="tag pit">BOX</span>' : r.tag === "out" ? '<span class="tag out">OUT</span>' : r.tag === "push" ? '<span class="tag push">PUSH</span>' : "";
@@ -705,17 +731,34 @@ button,input{font:inherit;color:inherit}
         const lcls = lastT && r.lastDone === r.p.bestL ? (r.p.best <= ob + 1e-6 ? "ob" : "pb") : "";
         a = `<div class="v ${r.p.best && r.p.best <= ob + 1e-6 ? "ob" : ""}">${fmt(r.p.best)}<small class="${lcls}">${lc}</small></div>`;
         const diff = r.p.best && ob ? (r.p.best - ob < 0.0005 ? "—" : "+" + (r.p.best - ob).toFixed(3)) : "—";
-        b = `<div class="v">${diff}<small>${r.nLaps} V</small></div>`;
+        const dAh = prevBest && r.p.best ? r.p.best - prevBest : null;
+        const ah = dAh != null ? "↑ " + (dAh >= 0 ? "+" : "−") + Math.abs(dAh).toFixed(3) : r.p.best && r === out[0] ? "P1" : "";
+        const cutTxt = quali && cutT && r.p.best && r.pos > safe && r.pos <= alive ? `<small class="cutc">CORTE +${(r.p.best - cutT).toFixed(3)}</small>` : quali && cutT && r.pos <= safe && r.pos > safe - 3 && r.p.best ? `<small style="color:var(--green)">−${(cutT - r.p.best).toFixed(3)} AL CORTE</small>` : "";
+        b = `<div class="v">${diff}<small>${ah}</small></div>`;
+        r.cutTxt = cutTxt;
+        if (r.p.best) prevBest = r.p.best;
       }
       const ty = r.tyre ? `<div class="ty ty-${esc(r.tyre)}">${esc(r.tyre)}</div>` : `<div class="ty">·</div>`;
       const sh = r.show || {};
       const sv = [sh.duration_sector_1, sh.duration_sector_2, sh.duration_sector_3];
       const segs = [sh.segments_sector_1, sh.segments_sector_2, sh.segments_sector_3];
-      const secs = sv.map((v, i) => `<div class="sec ${secCls(v, r.p.s[i], st.best.s[i])}"><i>S${i + 1}</i>${fs(v)}${msHTML(segs[i])}</div>`).join("") + `<div class="spd">${sh.st_speed ? sh.st_speed + " km/h" : ""}</div>`;
+      let extra = `<div class="spd">${sh.st_speed ? sh.st_speed + " km/h" : ""}</div>`;
+      const live = r.show && !(r.show.lap_duration > 0) && !r.show.is_pit_out_lap && r.p.s.every((x) => x > 0);
+      if (live) {
+        let done = 0, ref = 0, pred = 0;
+        sv.forEach((v, i) => { if (v > 0) { done++; ref += r.p.s[i]; pred += v; } else pred += r.p.s[i]; });
+        const dl = sv.reduce((a, v) => a + (v > 0 ? v : 0), 0) - ref;
+        if (done) {
+          const predPos = 1 + out.filter((x) => x !== r && x.p.best && x.p.best < pred).length;
+          const c = pred <= ob ? "ob" : dl < 0 ? "pb" : "yl";
+          extra = `<div class="pred ${c}">${dl < 0 ? "−" : "+"}${Math.abs(dl).toFixed(3)} · EST. P${predPos}</div>`;
+        }
+      }
+      const secs = sv.map((v, i) => `<div class="sec ${secCls(v, r.p.s[i], st.best.s[i])}"><i>S${i + 1}</i>${fs(v)}${msHTML(segs[i])}</div>`).join("") + extra;
       const cls = ["row"]; if (r.n === fav) cls.push("fav");
       if (quali && r.pos > alive && r.pos < 99) cls.push("out"); else if (quali && ph < 3 && r.pos > safe && r.pos < 99) cls.push("danger");
       const nm = dens === "compact" ? `${esc(d.name_acronym || "")} <span style="font-weight:600;color:var(--mut);font-size:12px">${esc(dname(d))}</span>` : esc(dname(d));
-      h += `<div data-n="${r.n}" class="${cls.join(" ")}" style="--team:${esc(col)}"><div class="p">${r.pos < 99 ? r.pos : "–"}</div><div class="bar"></div><div class="nm"><b>${nm}${gd}${dens === "compact" ? tg : ""}</b><small>${tg}<span>${esc(d.team_name || "")}</span>${r.tyre ? `<span>· LLANTA ${r.age} V</span>` : ""}</small></div>${a}${b}${ty}<div class="secs">${secs}</div></div>`;
+      h += `<div data-n="${r.n}" class="${cls.join(" ")}" style="--team:${esc(col)}"><div class="p">${r.pos < 99 ? r.pos : "–"}</div><div class="bar"></div><div class="nm"><b>${nm}${gd}${dens === "compact" ? tg : ""}</b><small>${tg}${r.cutTxt ? r.cutTxt.replace(/<\/?small[^>]*>/g, (m) => (m.startsWith("</") ? "</span>" : m.replace("small", "span"))) : `<span>${esc(d.team_name || "")}</span>`}${r.tyre ? `<span>· ${r.tyre} ${r.age}V</span>` : ""}${race ? "" : `<span>· ${r.nLaps} V</span>`}</small></div>${a}${b}${ty}<div class="secs">${secs}</div></div>`;
     }
     $("rows").innerHTML = h || '<div class="empty">Sin datos todavía</div>';
   }
@@ -749,6 +792,16 @@ button,input{font:inherit;color:inherit}
     const bests = Object.keys(st.per).filter((n) => st.per[n].best && S.drivers[n]).sort((a, b) => st.per[a].best - st.per[b].best);
     const ob = bests.length ? st.per[bests[0]].best : 0;
     h += `<div class="card"><h2>MEJOR VUELTA POR PILOTO <small>${bests.length} PILOTOS</small></h2>` + (bests.map((n, i) => { const p = st.per[n], l = p.bestL; const t = S.stintAll[n]?.find((s) => l.lap_number >= s.lap_start && (!s.lap_end || l.lap_number <= s.lap_end)); return li(i + 1, n, name(n), `V${l.lap_number}${t ? " · " + esc((t.compound || "")[0]) : ""} · <span class="${secCls(l.duration_sector_1, p.s[0], st.best.s[0])}">${fs(l.duration_sector_1)}</span> / <span class="${secCls(l.duration_sector_2, p.s[1], st.best.s[1])}">${fs(l.duration_sector_2)}</span> / <span class="${secCls(l.duration_sector_3, p.s[2], st.best.s[2])}">${fs(l.duration_sector_3)}</span>`, fmt(p.best), i ? "+" + (p.best - ob).toFixed(3) : "", i ? "" : "ob"); }).join("") || '<div class="empty">Sin vueltas completas</div>') + `</div>`;
+    h += (() => {
+      const ns = Object.keys(S.drivers).map(Number).sort((a, b) => (S.pos[a] || 99) - (S.pos[b] || 99));
+      const rows = ns.map((n) => {
+        const L = (st.per[n] || { laps: [] }).laps; const l = [...L].reverse().find((x) => x.segments_sector_1 && x.segments_sector_1.length) ;
+        if (!l) return "";
+        const segs = [l.segments_sector_1, l.segments_sector_2, l.segments_sector_3 || []].flat();
+        return `<div class="mrow" data-n="${n}"><b style="color:${esc(dcol(n))}">${esc(S.drivers[n].name_acronym || n)}</b><div class="msbig">${segs.map((c) => `<span class="m${String(c).slice(-2)}"></span>`).join("")}</div></div>`;
+      }).join("");
+      return rows ? `<div class="card"><h2>MINISECTORES <small>VUELTA MÁS RECIENTE DE CADA UNO</small></h2><div style="padding:6px 0">${rows}</div><div class="legend"><span><i class="m51"></i>MÁS RÁPIDO</span><span><i class="m49"></i>MEJOR PERSONAL</span><span><i class="m48"></i>MÁS LENTO</span><span><i class="m64"></i>PITS</span></div></div>` : "";
+    })();
     h += strategyHTML();
     const ideals = Object.keys(st.per).filter((n) => st.per[n].ideal && S.drivers[n]).sort((a, b) => st.per[a].ideal - st.per[b].ideal);
     h += `<div class="card"><h2>VUELTA IDEAL POR PILOTO <small>SUMA DE SUS MEJORES SECTORES</small></h2>` + (ideals.map((n, i) => { const p = st.per[n]; return li(i + 1, n, name(n), p.best ? `Le dejó ${(p.best - p.ideal).toFixed(3)} s en la mesa` : "Sin vuelta válida", fmt(p.ideal), "", i ? "" : "ob"); }).join("") || '<div class="empty">—</div>') + `</div>`;
@@ -860,7 +913,7 @@ button,input{font:inherit;color:inherit}
       [/VIRTUAL SAFETY CAR DEPLOYED/g, "VIRTUAL SAFETY CAR"], [/VIRTUAL SAFETY CAR ENDING/g, "VSC TERMINANDO"], [/SAFETY CAR DEPLOYED/g, "SAFETY CAR EN PISTA"], [/SAFETY CAR IN THIS LAP/g, "EL SAFETY CAR ENTRA ESTA VUELTA"],
       [/CAR (\d+) \((\w+)\) TIME ([\d:.]+) DELETED - TRACK LIMITS AT TURN (\d+)/g, "AUTO $1 ($2): TIEMPO $3 BORRADO — LÍMITES DE PISTA EN CURVA $4"],
       [/CAR (\d+) \((\w+)\) LAP DELETED/g, "AUTO $1 ($2): VUELTA BORRADA"], [/UNDER INVESTIGATION/g, "BAJO INVESTIGACIÓN"], [/NO FURTHER INVESTIGATION/g, "SIN MÁS INVESTIGACIÓN"], [/NO FURTHER ACTION/g, "SIN SANCIÓN"],
-      [/BLUE FLAG FOR CAR (\d+) \((\w+)\)/g, "BANDERA AZUL AUTO $1 ($2)"], [/RISK OF RAIN FOR F1 RACE IS (\d+)%/g, "PROBABILIDAD DE LLUVIA: $1%"], [/DRS ENABLED/g, "DRS HABILITADO"], [/DRS DISABLED/g, "DRS DESHABILITADO"],
+      [/BLUE FLAG FOR CAR (\d+) \((\w+)\)/g, "BANDERA AZUL AUTO $1 ($2)"], [/RISK OF RAIN FOR F1 RACE IS (\d+)%/g, "PROBABILIDAD DE LLUVIA: $1%"], [/DRS ENABLED/g, "DRS HABILITADO"], [/DRS DISABLED/g, "DRS DESHABILITADO"], [/OVERTAKE MODE ENABLED/g, "OVERTAKE MODE HABILITADO"], [/OVERTAKE MODE DISABLED/g, "OVERTAKE MODE DESHABILITADO"],
       [/SESSION WILL RESUME AT/g, "LA SESIÓN SE REANUDA A LAS"], [/WILL NOT BE RESUMED/g, "NO SE REANUDARÁ"], [/(\d+) SECOND TIME PENALTY/g, "$1 SEGUNDOS DE PENALIZACIÓN"], [/DRIVE THROUGH PENALTY/g, "DRIVE THROUGH"], [/PENALTY/g, "PENALIZACIÓN"], [/INCIDENT/g, "INCIDENTE"], [/NOTED/g, "ANOTADO"], [/REVIEWED/g, "REVISADO"], [/TURN (\d+)/g, "CURVA $1"], [/CARS /g, "AUTOS "], [/CAR (\d+)/g, "AUTO $1"], [/LAPPED CARS MAY NOW OVERTAKE/g, "LOS DOBLADOS YA PUEDEN REBASAR"], [/STOPPED/g, "DETENIDO"],
     ];
     for (const [a, b] of rep) t = t.replace(a, b);
@@ -918,6 +971,23 @@ button,input{font:inherit;color:inherit}
       return `<tr class="${l.is_pit_out_lap ? "pit" : ""}"><td>${l.lap_number}${l.is_pit_out_lap ? " OUT" : ""}</td><td class="${lc}">${fmt(lt)}</td>${sv.map((v, i) => `<td class="${l.is_pit_out_lap ? "" : secCls(v, p.s[i], st.best.s[i])}">${fs(v)}</td>`).join("")}<td>${l.st_speed || "—"}</td></tr>`;
     }).join("");
     const ch = S.champ && S.champ.dr.find((r) => r.driver_number === n);
+    const del = deletedSet();
+    const okL = p.laps.filter((l) => l.lap_duration > 0 && !l.is_pit_out_lap && !del.has(n + "|" + fmt(l.lap_duration)));
+    const push = okL.filter((l) => p.best && l.lap_duration <= p.best * 1.07);
+    const slow = push.length ? Math.max(...push.map((l) => l.lap_duration)) : 0;
+    const avg = push.length ? push.reduce((a, l) => a + l.lap_duration, 0) / push.length : 0;
+    const sd = push.length > 1 ? Math.sqrt(push.reduce((a, l) => a + (l.lap_duration - avg) ** 2, 0) / push.length) : 0;
+    let phaseHTML = "";
+    if (isQuali()) {
+      const ps = phaseStarts(), pb = {};
+      for (const l of okL) { const ph = lapPhase(l, ps); if (!pb[ph] || l.lap_duration < pb[ph]) pb[ph] = l.lap_duration; }
+      phaseHTML = `<div class="card" style="margin:0 12px 12px"><h2>POR FASE</h2><div class="trio">${[1, 2, 3].map((k) => `<div><small>Q${k}</small><b style="color:var(--tx)">${fmt(pb[k])}</b></div>`).join("")}</div></div>`;
+    }
+    const allSt = stats(isQuali() ? lapsScope : "all");
+    const vsAll = Object.keys(allSt.per).filter((x) => allSt.per[x].best && S.drivers[x]).sort((a, b) => allSt.per[a].best - allSt.per[b].best);
+    const vsHTML = p.best && vsAll.length > 1 ? `<div class="card" style="margin:0 12px 12px"><h2>DIFERENCIA CON TODOS <small>SU MEJOR VS. EL MEJOR DE CADA UNO</small></h2><table class="vs">${vsAll.map((x, i) => { const dd = allSt.per[x].best - p.best; return `<tr class="${+x === n ? "me" : ""}"><td>${i + 1}. ${esc(dname(S.drivers[x]))}</td><td>${fmt(allSt.per[x].best)}</td><td class="${+x === n ? "" : dd < 0 ? "yl" : "pb"}">${+x === n ? "—" : (dd > 0 ? "+" : "−") + Math.abs(dd).toFixed(3)}</td></tr>`; }).join("")}</table></div>` : "";
+    const hist = p.laps.slice(-8).reverse().filter((l) => l.segments_sector_1 && l.segments_sector_1.length);
+    const histHTML = hist.length ? `<div class="card" style="margin:0 12px 12px"><h2>MINISECTORES POR VUELTA</h2><div style="padding:6px 0">${hist.map((l) => `<div class="mrow"><b>V${l.lap_number}</b><div class="msbig">${[l.segments_sector_1, l.segments_sector_2, l.segments_sector_3 || []].flat().map((c) => `<span class="m${String(c).slice(-2)}"></span>`).join("")}</div></div>`).join("")}</div></div>` : "";
     const gap = p.best && st.best.lap ? (p.best - st.best.lap < 0.0005 ? "LA MÁS RÁPIDA" : "+" + (p.best - st.best.lap).toFixed(3)) : "—";
     $("sheetin").style.setProperty("--team", dcol(n));
     $("sheetin").innerHTML = `<div class="sh-h"><div><b>${esc(dname(d))}</b><small>#${n} · ${esc(d.team_name || "")}</small></div><button class="star ${n === fav ? "on" : ""}" id="favbtn">${n === fav ? "★ TU PILOTO" : "☆ MARCAR"}</button><button class="x" id="closeb">CERRAR</button></div>
@@ -926,7 +996,8 @@ button,input{font:inherit;color:inherit}
       <div><small>MEJORES SECTORES</small><b style="font-size:14px">${p.s.map((v, i) => `<span class="${v && v <= st.best.s[i] + 1e-6 ? "ob" : ""}">${fs(v)}</span>`).join(" · ")}</b></div><div><small>VELOCIDAD MÁX.</small><b>${p.st ? p.st + " km/h" : "—"}</b></div>
       <div><small>LLANTA ACTUAL</small><b>${stint ? esc(stint.compound || "") : "—"}</b></div><div><small>VUELTAS · BORRADOS</small><b>${last ? last.lap_number : 0} · ${p.dels}</b></div>
       ${ch ? `<div><small>CAMPEONATO</small><b>P${ch.position_current}</b></div><div><small>PUNTOS</small><b>${ch.points_current}</b></div>` : ""}</div>
-      ${msBlock}${lapChart(p, st.best.lap)}
+      <div class="grid4" style="margin-top:0"><div><small>VUELTA MÁS LENTA (EN RITMO)</small><b>${fmt(slow)}</b></div><div><small>PROMEDIO · CONSISTENCIA</small><b style="font-size:15px">${fmt(avg)} · ±${sd ? sd.toFixed(3) : "—"}</b></div></div>
+      ${phaseHTML}${msBlock}${histHTML}${vsHTML}${lapChart(p, st.best.lap)}
       <div class="card" style="margin:0 12px"><h2>SUS VUELTAS <small>MÁS RECIENTE ARRIBA</small></h2><table class="lt"><thead><tr><th>V</th><th>TIEMPO</th><th>S1</th><th>S2</th><th>S3</th><th>KM/H</th></tr></thead><tbody>${rows || '<tr><td colspan="6">Sin vueltas</td></tr>'}</tbody></table></div>`;
     $("favbtn").onclick = () => { fav = fav === n ? 0 : n; store.set("fav", fav ? String(fav) : null); render(); };
     $("closeb").onclick = closeSheet;
