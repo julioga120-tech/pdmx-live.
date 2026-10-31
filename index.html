@@ -379,6 +379,7 @@ button,input{font:inherit;color:inherit}
       S.sess.session_key = r.session_key; loadState();
     }
     if (r.session_key && !S.sess.session_key) { S.sess.session_key = r.session_key; loadState(); }
+    if (n && (topic === "laps" || topic === "location" || topic === "intervals")) (S.seenAt ||= {})[n] = Date.now();
     switch (topic) {
       case "position": S.pos[n] = r.position; break;
       case "intervals": { const o = S.intv[n]; if (o && typeof o.interval === "number") r._prev = o.interval; S.intv[n] = r; break; }
@@ -428,7 +429,7 @@ button,input{font:inherit;color:inherit}
       const ch = cacheGet("champ"); if (ch) S.champ = ch;
       loadState(); loadTrackCache(); renderHead(); render();
     }
-    S.mode = "mqtt";
+    S.mode = "mqtt"; S.mqStart = S.mqStart || Date.now();
     mq = mqtt.connect("wss://mqtt.openf1.org:8084/mqtt", { username: cred.u, password: tok, clean: true, reconnectPeriod: 3000, connectTimeout: 15000, keepalive: 30 });
     mq.on("connect", () => { mqTopics.clear(); mqSub(); setStatus("EN VIVO · MQTT", "ok"); $("dbg").textContent = ""; });
     mq.on("reconnect", async () => { try { mq.options.password = await getToken(); } catch {} setStatus("RECONECTANDO…", "warn"); });
@@ -734,6 +735,13 @@ button,input{font:inherit;color:inherit}
   function qPhase() {
     let ph = 0, start = null;
     for (const m of S.rc) if (m.qualifying_phase && m.qualifying_phase > ph) { ph = m.qualifying_phase; start = m.date; }
+    if (!ph && S.mode === "mqtt" && S.seenAt) {
+      // Entraste tarde y Race Control aún no manda nada: se deduce la fase por cuántos autos
+      // siguen dando vueltas (Q3 = 10, Q2 = 16, Q1 = 22).
+      const now = Date.now(), act = Object.keys(S.seenAt).filter((n) => now - S.seenAt[n] < 8 * 60000).length;
+      if (now - (S.mqStart || now) > 90000 || act > 0) ph = act === 0 ? 1 : act <= 10 ? 3 : act <= 16 ? 2 : 1;
+      if (act && act <= 16 && now - (S.mqStart || now) < 150000 && act < 3) ph = 0; // muy pocos datos aún
+    }
     return { ph: ph || 1, start };
   }
   function phaseStarts() {
