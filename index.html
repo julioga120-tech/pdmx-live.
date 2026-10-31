@@ -1,0 +1,1038 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#070a10">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="PDMX Timing">
+<title>Live Timing Móvil</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#070a10;--panel:#0e141d;--panel2:#121a25;--line:#263241;--line2:#1b2532;--tx:#eef3f8;--mut:#7f8da0;--cyan:#00d8ff;--yellow:#ffd400;--red:#ff314f;--green:#25e889;--orange:#ff9f1a;--purple:#c66cff;--F:"Barlow Semi Condensed",system-ui,sans-serif}
+:root[data-theme="dark"]{color-scheme:dark}
+*{box-sizing:border-box;margin:0}
+html,body{background:var(--bg);color:var(--tx);font-family:var(--F);font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased;-webkit-text-size-adjust:100%;overflow-x:hidden}
+body{min-height:100vh;padding-bottom:calc(62px + env(safe-area-inset-bottom))}
+button,input{font:inherit;color:inherit}
+.top{position:sticky;top:0;z-index:5;background:#0a1018f5;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-bottom:1px solid var(--line);padding:calc(8px + env(safe-area-inset-top)) 12px 8px}
+.r1{display:flex;align-items:center;gap:8px}
+.brand{font-weight:800;letter-spacing:1.4px;font-size:12px;color:var(--cyan);white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--mut);flex:none}
+.dot.ok{background:var(--green);box-shadow:0 0 8px var(--green)}.dot.warn{background:var(--yellow)}.dot.err{background:var(--red)}
+.st{font-size:11px;font-weight:700;color:var(--mut);letter-spacing:.6px;margin-left:auto;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gear{all:unset;cursor:pointer;width:28px;height:24px;display:grid;place-items:center;color:var(--mut)}
+.gear svg{width:18px;height:18px}
+.r2{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;margin-top:4px}
+.sess{min-width:0}
+.sess b{display:block;font-size:20px;font-weight:800;letter-spacing:.6px;line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sess small{display:block;font-size:12px;font-weight:700;color:var(--mut);letter-spacing:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.clk{text-align:right;flex:none}
+.clk small{display:block;font-size:10px;font-weight:700;color:var(--mut);letter-spacing:1.4px}
+.clk b{font-size:28px;font-weight:800;line-height:1}
+.flag{margin-top:7px;padding:5px 10px;border-radius:4px;font-size:13px;font-weight:800;letter-spacing:1.2px;text-align:center;background:#0f2a1d;color:var(--green);border:1px solid #25e88955}
+.flag.yellow{background:#2d2700;color:var(--yellow);border-color:#ffd40066}.flag.red{background:#3a0912;color:#ff6a7f;border-color:#ff314f88}.flag.sc{background:#2d2000;color:var(--orange);border-color:#ff9f1a77}.flag.chq{background:#1b1f26;color:#fff;border-color:#ffffff55}
+.wx{margin-top:5px;font-size:12px;font-weight:700;color:var(--mut);letter-spacing:.8px;display:flex;justify-content:space-between;gap:8px}
+.wx b{color:var(--tx)}
+/* alerta */
+.alert{position:fixed;left:10px;right:10px;top:calc(10px + env(safe-area-inset-top));z-index:30;padding:14px 16px;border-radius:10px;font-size:18px;font-weight:800;letter-spacing:1.2px;text-align:center;box-shadow:0 10px 30px #000c;animation:al .25s ease-out}
+.alert.red{background:#c4122f;color:#fff}.alert.sc{background:#ff9f1a;color:#1a0f00}.alert.yellow{background:#ffd400;color:#1a1500}.alert.chq{background:#fff;color:#000}.alert.green{background:#18b86b;color:#fff}.alert.me{background:#062330;color:var(--cyan);border:2px solid var(--cyan)}
+@keyframes al{from{transform:translateY(-30px);opacity:0}}
+/* torre */
+.tbar{display:flex;align-items:center;gap:8px;padding:8px 10px 0}
+.tbar .seg{flex:1;padding:0}
+.hd{display:grid;grid-template-columns:28px 5px minmax(0,1fr) 72px 60px 28px;gap:6px;padding:7px 10px 5px;font-size:10px;font-weight:700;letter-spacing:1.2px;color:var(--mut);border-bottom:1px solid var(--line2)}
+.hd span:nth-child(n+4){text-align:right}
+.row{display:grid;grid-template-columns:28px 5px minmax(0,1fr) 72px 60px 28px;column-gap:6px;row-gap:5px;align-items:center;padding:7px 10px 6px;border-bottom:1px solid var(--line2);cursor:pointer}
+.row:nth-child(odd){background:#0b1018}
+.row.fav{background:#062330!important;box-shadow:inset 3px 0 0 var(--cyan)}
+.row.danger{background:#1d1206!important}.row.out{opacity:.42}
+.compact .row{padding:3px 10px;row-gap:0}
+.compact .row .p{font-size:16px}.compact .row .bar{height:20px}
+.compact .row .nm b{font-size:15px}.compact .row .nm small,.compact .row .v small,.compact .secs{display:none}
+.compact .row .v{font-size:14px}.compact .ty{width:20px;height:20px;border-width:2px;font-size:10px}
+.cut{padding:5px 12px;font-size:11px;font-weight:800;letter-spacing:1.4px;color:var(--orange);background:#1a1206;border-bottom:1px solid #ff9f1a44;border-top:1px solid #ff9f1a44}
+.cut.red{color:#ff6a7f;background:#1a0a0e;border-color:#ff314f44}
+.compact .cut{padding:2px 12px;font-size:10px}
+.p{font-size:20px;font-weight:800;text-align:center}
+.bar{width:4px;height:30px;border-radius:2px;background:var(--team,#888)}
+.nm{min-width:0}
+.nm b{display:flex;align-items:center;gap:5px;font-size:17px;font-weight:800;letter-spacing:.4px;line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nm small{display:flex;gap:5px;align-items:center;font-size:11px;font-weight:600;color:var(--mut);white-space:nowrap;overflow:hidden}
+.gd{font-size:11px;font-weight:800}.gd.up{color:var(--green)}.gd.dn{color:var(--red)}
+.tag{font-size:10px;font-weight:800;padding:0 4px;border-radius:2px;letter-spacing:.6px;background:#25344a;color:#cfe}
+.tag.pit{background:#3b2a07;color:var(--orange)}.tag.out{background:#06303a;color:var(--cyan)}.tag.push{background:#2a1240;color:var(--purple)}
+.v{text-align:right;font-size:15px;font-weight:700;line-height:1.1;white-space:nowrap}
+.v small{display:block;font-size:11px;color:var(--mut);font-weight:600}
+.ob{color:var(--purple)!important}.pb{color:var(--green)!important}.yl{color:var(--yellow)!important}
+.ty{width:24px;height:24px;border-radius:50%;border:3px solid var(--tc,#555);display:grid;place-items:center;font-size:11px;font-weight:800;justify-self:end}
+.ty-S{--tc:#ff314f}.ty-M{--tc:#ffd400}.ty-H{--tc:#e9eef4}.ty-I{--tc:#25e889}.ty-W{--tc:#1688ff}
+.secs{grid-column:3/7;display:grid;grid-template-columns:repeat(3,1fr) auto;gap:4px}
+.sec{position:relative;font-size:12px;font-weight:700;color:#c5cfdb;background:#111a26;border-radius:3px;padding:2px 5px 4px;display:flex;justify-content:space-between;overflow:hidden}
+.sec i{font-style:normal;color:var(--mut);font-size:10px;font-weight:800}
+.ms{position:absolute;left:0;right:0;bottom:0;height:3px;display:flex;gap:1px}
+.ms span{flex:1;background:#2a3646}
+.m48{background:var(--yellow)!important}.m49{background:var(--green)!important}.m51{background:var(--purple)!important}.m64{background:#1688ff!important}
+.sec.ob,.sec.pb,.sec.yl{color:#fff!important}
+.sec.ob i{color:var(--purple)}.sec.pb i{color:var(--green)}.sec.yl i{color:var(--yellow)}
+.spd{font-size:11px;font-weight:700;color:var(--mut);align-self:center;white-space:nowrap}
+/* tarjetas */
+.pad{padding:12px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;margin-bottom:12px;overflow:hidden}
+.card h2{font-size:12px;letter-spacing:1.6px;color:#aeb9c7;padding:10px 12px;border-bottom:1px solid var(--line2);display:flex;justify-content:space-between;gap:8px}
+.card h2 small{color:var(--cyan);font-size:11px;text-align:right}
+.li{display:grid;grid-template-columns:24px 4px minmax(0,1fr) auto;gap:8px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--line2)}
+.li:last-child{border-bottom:0}
+.li .n{font-weight:800;color:var(--mut);text-align:center}
+.li b{font-size:15px;font-weight:800;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.li small{font-size:11px;color:var(--mut);font-weight:600}
+.li .r{text-align:right;font-weight:800;font-size:16px}
+.li .r small{display:block}
+.li.fav{background:#062330}
+.trio{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line2)}
+.trio div{background:var(--panel);padding:10px 8px;text-align:center}
+.trio small{display:block;font-size:10px;letter-spacing:1.2px;color:var(--mut);font-weight:700}
+.trio b{display:block;font-size:18px;font-weight:800;color:var(--purple);margin-top:2px}
+.trio span{display:block;font-size:12px;font-weight:700;margin-top:1px}
+.seg{display:flex;gap:6px;padding:10px 12px 0}
+.seg button{flex:1;padding:8px;border-radius:6px;border:1px solid #2d3d52;background:#111b27;font-weight:800;font-size:12px;letter-spacing:1px;cursor:pointer}
+.seg button.on{border-color:var(--cyan);color:var(--cyan);background:#062330}
+/* estrategia */
+.strat{padding:8px 12px 10px}
+.sr{display:grid;grid-template-columns:34px 1fr;gap:6px;align-items:center;height:20px}
+.sr b{font-size:12px;font-weight:800}
+.sr .tr{position:relative;height:12px;background:#0b111a;border-radius:3px;overflow:hidden}
+.sr .tr span{position:absolute;top:0;bottom:0;border-right:2px solid var(--panel);font-size:9px;font-weight:800;color:#000;display:flex;align-items:center;padding-left:3px;overflow:hidden}
+.c-S{background:#ff314f}.c-M{background:#ffd400}.c-H{background:#e9eef4}.c-I{background:#25e889}.c-W{background:#1688ff}.c-U{background:#55606e}
+.legend{display:flex;gap:10px;flex-wrap:wrap;padding:0 12px 10px;font-size:11px;font-weight:700;color:var(--mut)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+/* mundial */
+.pts{font-size:18px;font-weight:800}
+.pd{font-size:11px;font-weight:800;margin-left:4px}.pd.up{color:var(--green)}.pd.dn{color:var(--red)}
+.proj{color:var(--cyan)}
+/* clima */
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line2)}
+.tiles div{background:var(--panel);padding:10px 8px}
+.tiles small{display:block;font-size:10px;letter-spacing:1.2px;color:var(--mut);font-weight:700}
+.tiles b{display:flex;align-items:center;gap:5px;font-size:22px;font-weight:800;margin-top:2px}
+.tiles b em{font-style:normal;font-size:12px;color:var(--mut);font-weight:700}
+.arrow{width:16px;height:16px;color:var(--cyan)}
+.chart{display:block;width:100%;height:150px}
+.sch{display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:9px 12px;border-bottom:1px solid var(--line2);align-items:center}
+.sch:last-child{border-bottom:0}
+.sch b{font-size:15px;font-weight:800}.sch small{font-size:12px;color:var(--mut);font-weight:600}
+.sch .s{font-size:11px;font-weight:800;letter-spacing:1px;padding:2px 6px;border-radius:3px;background:#1b2532;color:var(--mut)}
+.sch .s.live{background:#3a0912;color:#ff6a7f}.sch .s.next{background:#062330;color:var(--cyan)}
+/* mapa */
+.mapwrap{position:relative;margin:10px 10px 0;background:radial-gradient(ellipse at center,#0f1824,#080c12);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+#map{display:block;width:100%;height:62vh;touch-action:pan-y}
+.maptag{position:absolute;left:10px;top:8px;font-size:11px;font-weight:800;letter-spacing:1.2px;color:var(--mut)}
+.maptag b{color:var(--cyan)}
+.chips{display:flex;flex-wrap:wrap;gap:5px;padding:10px}
+.chip{display:flex;align-items:center;gap:5px;padding:4px 7px;border-radius:4px;background:#0e151f;border:1px solid #1f2b3a;font-size:12px;font-weight:800;cursor:pointer}
+.chip i{width:8px;height:8px;border-radius:50%;background:var(--team)}
+.chip.fav{border-color:var(--cyan);color:var(--cyan)}
+/* RC */
+.rc{padding:10px 12px;border-bottom:1px solid var(--line2);border-left:3px solid transparent}
+.rc b{display:block;font-size:15px;font-weight:700;line-height:1.25}
+.rc small{font-size:11px;color:var(--mut);font-weight:600;letter-spacing:.6px}
+.rc.red{border-left-color:var(--red)}.rc.yellow{border-left-color:var(--yellow)}.rc.green{border-left-color:var(--green)}.rc.blue{border-left-color:var(--cyan)}.rc.pen{border-left-color:var(--orange)}
+.radio{display:grid;grid-template-columns:4px 1fr auto;gap:10px;align-items:center;padding:9px 12px;border-bottom:1px solid var(--line2)}
+.radio b{font-size:15px;font-weight:800;display:block}.radio small{font-size:11px;color:var(--mut);font-weight:600}
+.play{all:unset;cursor:pointer;width:38px;height:38px;border-radius:50%;background:#0090b4;display:grid;place-items:center;font-size:14px;font-weight:800}
+.play.on{background:var(--red)}
+.empty{padding:36px 20px;text-align:center;color:var(--mut);font-weight:600;line-height:1.5}
+/* tabs */
+.tabs{position:fixed;left:0;right:0;bottom:0;z-index:6;display:grid;grid-template-columns:repeat(6,1fr);background:#0a1018f8;border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+.tabs button{all:unset;text-align:center;padding:13px 0 12px;font-size:11.5px;font-weight:800;letter-spacing:.8px;color:var(--mut);cursor:pointer}
+.tabs button.on{color:var(--cyan);box-shadow:inset 0 3px 0 var(--cyan)}
+/* login / ajustes */
+.login{padding:22px 16px;max-width:460px;margin:0 auto}
+.login h1{font-size:24px;font-weight:800;letter-spacing:1px;margin-bottom:6px}
+.login p{color:var(--mut);font-size:14px;font-weight:600;line-height:1.45;margin-bottom:16px}
+.login label{display:block;font-size:12px;font-weight:700;color:#9aa7b7;letter-spacing:1px;margin:12px 0 5px}
+.login input{width:100%;padding:12px;background:#080d14;border:1px solid #2a3b4f;border-radius:6px;font-size:16px}
+.btn{display:block;width:100%;margin-top:14px;padding:13px;border:0;border-radius:6px;background:#0090b4;font-weight:800;letter-spacing:1.4px;font-size:15px;cursor:pointer}
+.btn.ghost{background:transparent;border:1px solid #2d3d52}
+.err{margin-top:12px;color:#ff8a9b;font-weight:700;font-size:14px;line-height:1.4}
+.txt{padding:12px;font-size:14px;color:#c7d1dd;line-height:1.45;font-weight:500}
+.opt{display:flex;gap:8px;padding:0 12px 12px}
+.opt button{flex:1;padding:10px;border-radius:6px;border:1px solid #2d3d52;background:#111b27;font-weight:800;cursor:pointer}
+.opt button.on{border-color:var(--cyan);color:var(--cyan)}
+.tg{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:11px 12px;border-bottom:1px solid var(--line2);font-size:14px;font-weight:700}
+.tg:last-child{border-bottom:0}
+.tg small{display:block;color:var(--mut);font-weight:600;font-size:12px}
+.tg input{width:22px;height:22px;accent-color:var(--cyan);flex:none}
+/* hoja de piloto */
+.sheet{position:fixed;inset:0;z-index:20;background:#000a;display:flex;align-items:flex-end}
+.sheet .in{width:100%;max-height:90vh;overflow:auto;background:var(--bg);border-top:3px solid var(--team,#0af);border-radius:14px 14px 0 0;padding-bottom:calc(16px + env(safe-area-inset-bottom))}
+.sh-h{position:sticky;top:0;z-index:2;background:var(--bg);display:flex;align-items:center;gap:10px;padding:14px 14px 10px;border-bottom:1px solid var(--line2)}
+.sh-h b{font-size:22px;font-weight:800;display:block;line-height:1}
+.sh-h small{font-size:12px;color:var(--mut);font-weight:700;letter-spacing:1px}
+.sh-h .x{margin-left:auto;all:unset;cursor:pointer;font-size:14px;font-weight:800;color:var(--mut);padding:8px}
+.star{all:unset;cursor:pointer;padding:6px 10px;border:1px solid #2d3d52;border-radius:6px;font-size:12px;font-weight:800;letter-spacing:1px}
+.star.on{border-color:var(--cyan);color:var(--cyan)}
+.grid4{display:grid;grid-template-columns:repeat(2,1fr);gap:1px;background:var(--line2);margin:12px;border-radius:8px;overflow:hidden;border:1px solid var(--line)}
+.grid4 div{background:var(--panel);padding:9px 10px}
+.grid4 small{display:block;font-size:10px;letter-spacing:1.2px;color:var(--mut);font-weight:700}
+.grid4 b{font-size:18px;font-weight:800}
+.msbig{display:flex;gap:2px;padding:10px 12px 12px}
+.msbig span{flex:1;height:10px;border-radius:2px;background:#2a3646}
+.msbig.lbl{padding-top:0;font-size:10px;color:var(--mut);font-weight:800;gap:0}
+.msbig.lbl span{height:auto;background:none;text-align:center}
+.lt{width:100%;border-collapse:collapse;font-size:13px}
+.lt th{font-size:10px;letter-spacing:1px;color:var(--mut);font-weight:700;text-align:right;padding:6px 8px;border-bottom:1px solid var(--line2)}
+.lt td{text-align:right;padding:7px 8px;border-bottom:1px solid var(--line2);font-weight:700;white-space:nowrap}
+.lt th:first-child,.lt td:first-child{text-align:left}
+.lt tr.pit td{color:var(--mut)}
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="r1"><span class="brand">PURÉ DRIVING MX · LIVE TIMING</span><span class="st" id="st">—</span><span class="dot" id="dot"></span>
+    <button class="gear" id="fsb" aria-label="Pantalla completa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+    <button class="gear" id="gear" aria-label="Ajustes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button></div>
+  <div class="r2">
+    <div class="sess"><b id="sname">—</b><small id="ssub">—</small></div>
+    <div class="clk"><small id="clab">TIEMPO</small><b id="clock">--:--</b></div>
+  </div>
+  <div class="flag" id="flag">PISTA VERDE</div>
+  <div class="wx" id="wx"></div>
+</header>
+
+<main>
+  <section id="v-login" class="login hidden">
+    <h1>Entrar con OpenF1</h1>
+    <p>En sesión en vivo OpenF1 solo da datos con tu cuenta de patrocinador. Se guarda solo en este celular.</p>
+    <label>USUARIO O CORREO</label><input id="u" autocomplete="username" autocapitalize="none" spellcheck="false">
+    <label>CONTRASEÑA</label><input id="pw" type="password" autocomplete="current-password">
+    <button class="btn" id="go">ENTRAR</button>
+    <div class="err" id="lerr"></div>
+  </section>
+
+  <section id="v-tower" class="hidden">
+    <div class="tbar"><div class="seg" id="dens"><button data-d="full">DETALLE (SECTORES)</button><button data-d="compact">LOS 22 EN PANTALLA</button></div></div>
+    <div id="towerbox"><div class="hd" id="hd"></div><div id="rows"><div class="empty">Cargando…</div></div></div>
+  </section>
+
+  <section id="v-map" class="hidden">
+    <div class="mapwrap"><canvas id="map"></canvas><div class="maptag" id="maptag">MAPA</div></div>
+    <div class="chips" id="chips"></div>
+  </section>
+
+  <section id="v-laps" class="pad hidden"><div id="lapsv"></div></section>
+  <section id="v-champ" class="pad hidden"><div id="champv"><div class="empty">Cargando campeonato…</div></div></section>
+  <section id="v-info" class="pad hidden"><div id="infov"></div></section>
+
+  <section id="v-rc" class="hidden">
+    <div class="seg" id="rcseg" style="padding-bottom:10px"><button data-r="rc" class="on">RACE CONTROL</button><button data-r="radio">RADIOS</button></div>
+    <div id="rcl"><div class="empty">Sin mensajes todavía</div></div>
+    <div id="radl" class="hidden"></div>
+  </section>
+
+  <section id="v-set" class="pad hidden">
+    <div class="card"><h2>ACTUALIZAR TIEMPOS CADA</h2>
+      <div class="opt" id="rate" style="padding-top:12px"><button data-r="4">4 s</button><button data-r="8">8 s</button><button data-r="15">15 s</button></div>
+      <div class="txt" style="padding-top:0">Más segundos = menos datos. El mapa (GPS) solo baja datos mientras estás en MAPA.</div></div>
+    <div class="card"><h2>AVISOS Y PANTALLA</h2>
+      <label class="tg"><span>Avisos de bandera<small>Roja, SC, VSC, amarilla doble y cuadros: aviso grande arriba</small></span><input type="checkbox" id="o-alert"></label>
+      <label class="tg"><span>Vibrar con los avisos<small>Solo Android</small></span><input type="checkbox" id="o-vib"></label>
+      <label class="tg"><span>Avisar mejoras de TU PILOTO<small>Mejor vuelta personal o vuelta más rápida</small></span><input type="checkbox" id="o-me"></label>
+      <label class="tg"><span>Pantalla siempre encendida<small>Mientras esta página esté abierta</small></span><input type="checkbox" id="o-wake"></label>
+    </div>
+    <div class="card"><h2>CÓMO SE LEE</h2><div class="txt">
+      Morado = lo más rápido de la sesión · Verde = mejor personal · Amarillo = más lento que su mejor.<br>
+      La rayita bajo cada sector son los minisectores (azul = pit lane).<br>
+      Toca un piloto (en torre, mapa, vueltas o mundial) para ver su ficha completa y marcarlo como TU PILOTO.</div></div>
+    <div class="card"><h2>RELOJ</h2><div class="txt">Se calcula con la hora de la sesión y Race Control (en qualy se pausa con bandera roja). Puede variar unos segundos contra la tele.</div></div>
+    <div class="card"><h2>CUENTA</h2><div class="txt" id="acct">—</div><div style="padding:0 12px 12px"><button class="btn ghost" id="logout">SALIR Y BORRAR CUENTA DE ESTE CELULAR</button></div></div>
+  </section>
+</main>
+
+<nav class="tabs hidden" id="tabs">
+  <button data-v="tower" class="on">TORRE</button>
+  <button data-v="map">MAPA</button>
+  <button data-v="laps">VUELTAS</button>
+  <button data-v="champ">MUNDIAL</button>
+  <button data-v="info">CLIMA</button>
+  <button data-v="rc">RC</button>
+</nav>
+
+<div class="sheet hidden" id="sheet"><div class="in" id="sheetin"></div></div>
+<div id="alertbox"></div>
+<audio id="aud" preload="none"></audio>
+
+<script>
+(() => {
+  const API = "https://api.openf1.org";
+  const $ = (id) => document.getElementById(id);
+  const store = {
+    get(k) { try { return localStorage.getItem("pdmx_" + k); } catch { return null; } },
+    set(k, v) { try { v == null ? localStorage.removeItem("pdmx_" + k) : localStorage.setItem("pdmx_" + k, v); } catch {} },
+  };
+  const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const TOTAL_LAPS = { "Mexico City": 71, "Las Vegas": 50, "Lusail": 57, "Yas Marina Circuit": 58, "Interlagos": 71, "Austin": 56 };
+  const RACE_PTS = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1], SPRINT_PTS = [8, 7, 6, 5, 4, 3, 2, 1];
+
+  let cred = { u: store.get("u") || "", p: store.get("p") || "" };
+  let token = null, tokenExp = 0;
+  let rate = +(store.get("rate") || 8);
+  let fav = +(store.get("fav") || 0);
+  let dens = store.get("dens") || "full";
+  const opt = { alert: store.get("o-alert") !== "0", vib: store.get("o-vib") !== "0", me: store.get("o-me") !== "0", wake: store.get("o-wake") === "1" };
+  let view = "tower", lapsScope = "all", rcMode = "rc";
+  let S = null;
+
+  const fresh = (sess) => ({ sess, wx: null, wxAll: [], drivers: {}, pos: {}, grid: {}, intv: {}, laps: {}, stints: {}, stintAll: {}, rc: [], radios: [], pits: {}, loc: {}, track: null, year: [], champ: null, cur: {} });
+
+  // ---------- red ----------
+  async function getToken() {
+    if (token && Date.now() < tokenExp - 120000) return token;
+    const r = await fetch(API + "/token", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: "username=" + encodeURIComponent(cred.u) + "&password=" + encodeURIComponent(cred.p) });
+    if (!r.ok) throw new Error(r.status === 401 || r.status === 400 ? "auth" : "token " + r.status);
+    const j = await r.json();
+    token = j.access_token; tokenExp = Date.now() + (+j.expires_in || 3600) * 1000;
+    return token;
+  }
+  async function q(path) {
+    let r = await fetch(API + "/v1/" + path, { headers: { Authorization: "Bearer " + (await getToken()) } });
+    if (r.status === 401) { token = null; r = await fetch(API + "/v1/" + path, { headers: { Authorization: "Bearer " + (await getToken()) } }); }
+    if (r.status === 404 || r.status === 422) return [];
+    if (r.status === 429) { await new Promise((ok) => setTimeout(ok, 1500)); return []; }
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const j = await r.json();
+    return Array.isArray(j) ? j : [];
+  }
+  const gt = (k, d) => (d ? `&${k}>${encodeURIComponent(d)}` : "");
+  const K = () => "session_key=" + S.sess.session_key;
+  const soft = (p) => p.catch(() => {});
+
+  // ---------- carga ----------
+  async function boot() {
+    setStatus("CONECTANDO…", "warn");
+    const now = Date.now();
+    let list = await q("sessions?year=" + new Date().getUTCFullYear());
+    list = list.filter((s) => !s.is_cancelled).sort((a, b) => new Date(a.date_start) - new Date(b.date_start));
+    let pick = null;
+    for (const s of list) if (new Date(s.date_start).getTime() - 40 * 60000 <= now) pick = s;
+    pick = pick || list[list.length - 1];
+    if (!pick) throw new Error("Sin sesiones");
+    S = fresh(pick);
+    S.year = list;
+    for (const d of await q("drivers?" + K())) S.drivers[d.driver_number] = d;
+    renderHead();
+    loadTrackCache();
+    if (isRace()) soft(q("starting_grid?" + K()).then((a) => { for (const g of a) S.grid[g.driver_number] = g.position; }));
+    soft(loadChamp());
+    await poll(true);
+  }
+
+  async function loadChamp() {
+    // campeonato tras la última carrera o sprint terminada
+    const now = Date.now();
+    const done = S.year.filter((s) => (s.session_type || "").toLowerCase() === "race" && new Date(s.date_end).getTime() + 30 * 60000 < now && s.session_key !== S.sess.session_key);
+    for (let i = done.length - 1; i >= Math.max(0, done.length - 3); i--) {
+      const k = done[i].session_key;
+      const [dr, tm] = await Promise.all([q("championship_drivers?session_key=" + k), q("championship_teams?session_key=" + k)]);
+      if (dr.length) { S.champ = { after: done[i], dr, tm }; break; }
+    }
+    renderChamp();
+  }
+
+  async function poll(first) {
+    const race = isRace();
+    const slow = first || !S.cur.stAt || Date.now() - S.cur.stAt > 30000;
+    const jobs = [
+      q("position?" + K() + gt("date", S.cur.pos)).then((a) => { for (const p of a) { S.pos[p.driver_number] = p.position; if (!S.cur.pos || p.date > S.cur.pos) S.cur.pos = p.date; } }),
+      q("laps?" + K() + gt("date_start", S.cur.laps)).then((a) => {
+        for (const l of a) {
+          (S.laps[l.driver_number] ||= {})[l.lap_number] = l;
+          if (l.date_start && (!S.cur.lapsMax || l.date_start > S.cur.lapsMax)) S.cur.lapsMax = l.date_start;
+        }
+        if (S.cur.lapsMax) S.cur.laps = new Date(new Date(S.cur.lapsMax).getTime() - 4 * 60000).toISOString();
+      }),
+      q("race_control?" + K() + gt("date", S.cur.rc)).then((a) => {
+        const seen = new Set(S.rc.map((m) => m.date + m.message));
+        const fresh = [];
+        for (const m of a) { if (!seen.has(m.date + m.message)) { S.rc.push(m); fresh.push(m); } if (!S.cur.rc || m.date > S.cur.rc) S.cur.rc = m.date; }
+        S.rc.sort((x, y) => (x.date < y.date ? -1 : 1));
+        if (!first) for (const m of fresh) flagAlert(m);
+      }),
+    ];
+    if (race) jobs.push(q("intervals?" + K() + gt("date", S.cur.intv)).then((a) => { for (const i of a) { S.intv[i.driver_number] = i; if (!S.cur.intv || i.date > S.cur.intv) S.cur.intv = i.date; } }));
+    if (slow) {
+      S.cur.stAt = Date.now();
+      jobs.push(q("stints?" + K()).then((a) => {
+        S.stintAll = {};
+        for (const s of a) { (S.stintAll[s.driver_number] ||= []).push(s); const c = S.stints[s.driver_number]; if (!c || s.stint_number >= c.stint_number) S.stints[s.driver_number] = s; }
+        for (const n in S.stintAll) S.stintAll[n].sort((x, y) => x.stint_number - y.stint_number);
+      }));
+      jobs.push(q("pit?" + K()).then((a) => { S.pits = {}; for (const p of a) (S.pits[p.driver_number] ||= []).push(p); }));
+      jobs.push(q("weather?" + K() + gt("date", S.cur.wx)).then((a) => { for (const w of a) { S.wxAll.push(w); if (!S.cur.wx || w.date > S.cur.wx) S.cur.wx = w.date; } if (S.wxAll.length) S.wx = S.wxAll[S.wxAll.length - 1]; }));
+      jobs.push(soft(q("team_radio?" + K() + gt("date", S.cur.rad)).then((a) => { for (const r of a) { S.radios.push(r); if (!S.cur.rad || r.date > S.cur.rad) S.cur.rad = r.date; } })));
+    }
+    const before = snapBests();
+    await Promise.all(jobs);
+    S.lastOk = Date.now();
+    if (!first) meAlert(before);
+    if (!S.track && !S.trackBusy) buildTrack();
+    render();
+  }
+
+  // ---------- avisos ----------
+  let alertT = 0;
+  function showAlert(text, cls, force) {
+    if (!opt.alert && cls !== "me") return;
+    if (cls === "me" && !opt.me && !/iPhone/.test(text)) return;
+    $("alertbox").innerHTML = `<div class="alert ${cls}">${esc(text)}</div>`;
+    clearTimeout(alertT); alertT = setTimeout(() => ($("alertbox").innerHTML = ""), 6000);
+    if (opt.vib && navigator.vibrate) try { navigator.vibrate(cls === "red" ? [300, 120, 300, 120, 300] : [200, 100, 200]); } catch {}
+  }
+  function flagAlert(m) {
+    const msg = (m.message || "").toUpperCase(), f = (m.flag || "").toUpperCase();
+    if (f === "RED") showAlert("BANDERA ROJA", "red");
+    else if (f === "CHEQUERED") showAlert("BANDERA A CUADROS", "chq");
+    else if (/VIRTUAL SAFETY CAR DEPLOYED/.test(msg)) showAlert("VIRTUAL SAFETY CAR", "sc");
+    else if (/SAFETY CAR DEPLOYED/.test(msg)) showAlert("SAFETY CAR", "sc");
+    else if (f === "DOUBLE YELLOW") showAlert("DOBLE AMARILLA" + (m.sector ? " · SECTOR " + m.sector : ""), "yellow");
+    else if (/GREEN LIGHT/.test(msg) && S.rc.some((x) => (x.flag || "").toUpperCase() === "RED")) showAlert("LUZ VERDE · SE REANUDA", "green");
+  }
+  function snapBests() { if (!fav || !S) return null; const st = stats("all"); return { me: st.per[fav]?.best || 0, ob: st.best.lap }; }
+  function meAlert(b) {
+    if (!b || !fav) return;
+    const st = stats("all"), me = st.per[fav]?.best || 0, d = S.drivers[fav];
+    if (me && b.me && me < b.me - 1e-6) showAlert(`${dname(d)} · ${me <= st.best.lap + 1e-6 ? "¡LA MÁS RÁPIDA!" : "MEJOR PERSONAL"} ${fmt(me)}`, "me");
+  }
+
+  // ---------- trazado (GPS de una vuelta limpia) ----------
+  function loadTrackCache() {
+    try { const t = JSON.parse(store.get("track_" + S.sess.circuit_key) || "null"); if (t && t.pts && t.pts.length > 50) S.track = prepTrack(t.pts); } catch {}
+  }
+  async function buildTrack() {
+    const cands = [];
+    for (const n in S.laps) for (const l of Object.values(S.laps[n])) if (l.lap_duration > 0 && !l.is_pit_out_lap && l.date_start) cands.push(l);
+    if (!cands.length) return;
+    cands.sort((a, b) => a.lap_duration - b.lap_duration);
+    S.trackBusy = true;
+    try {
+      for (const l of cands.slice(0, 3)) {
+        const t0 = new Date(l.date_start), t1 = new Date(t0.getTime() + l.lap_duration * 1000);
+        const a = await q(`location?${K()}&driver_number=${l.driver_number}&date>=${encodeURIComponent(t0.toISOString())}&date<=${encodeURIComponent(t1.toISOString())}`);
+        const pts = a.filter((p) => p.x || p.y).map((p) => [p.x, p.y]);
+        if (pts.length > 120) { S.track = prepTrack(pts); store.set("track_" + S.sess.circuit_key, JSON.stringify({ pts })); break; }
+      }
+    } catch {}
+    S.trackBusy = false;
+  }
+  function prepTrack(pts) {
+    let mx = 0, my = 0; for (const [x, y] of pts) { mx += x; my += y; } mx /= pts.length; my /= pts.length;
+    let sxx = 0, syy = 0, sxy = 0; for (const [x, y] of pts) { const dx = x - mx, dy = y - my; sxx += dx * dx; syy += dy * dy; sxy += dx * dy; }
+    const ang = 0.5 * Math.atan2(2 * sxy, sxx - syy);
+    const rot = Math.PI / 2 - ang, c = Math.cos(rot), s = Math.sin(rot);
+    const tf = (x, y) => { const dx = x - mx, dy = y - my; return [dx * c - dy * s, -(dx * s + dy * c)]; };
+    const P = pts.map(([x, y]) => tf(x, y));
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+    for (const [x, y] of P) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+    // tercios del trazado para colorear sectores aproximados
+    return { P, tf, box: [x0, x1, y0, y1], start: P[0] };
+  }
+
+  // ---------- GPS en vivo ----------
+  let gpsBusy = false, gpsTimer = null, newestLoc = 0, lagEMA = null;
+  async function pollGPS() {
+    clearTimeout(gpsTimer);
+    if (view !== "map" || !S || document.hidden) return;
+    if (!gpsBusy) {
+      gpsBusy = true;
+      try {
+        const since = S.cur.loc && Date.now() - new Date(S.cur.loc).getTime() < 60000 ? S.cur.loc : new Date(Date.now() - 10000).toISOString();
+        const a = await q("location?" + K() + "&date>" + encodeURIComponent(since));
+        for (const p of a) {
+          if (!p.x && !p.y) continue;
+          const t = new Date(p.date).getTime();
+          (S.loc[p.driver_number] ||= []).push([t, p.x, p.y]);
+          if (!S.cur.loc || p.date > S.cur.loc) S.cur.loc = p.date;
+          if (t > newestLoc) newestLoc = t;
+        }
+        const cut = Date.now() - 40000;
+        for (const n in S.loc) { const arr = S.loc[n]; arr.sort((x, y) => x[0] - y[0]); let i = 0; while (i < arr.length - 2 && arr[i][0] < cut) i++; if (i) arr.splice(0, i); }
+        if (newestLoc) { const lag = Date.now() - newestLoc; lagEMA = lagEMA == null ? lag : Math.max(lag, lagEMA * 0.9 + lag * 0.1); }
+      } catch {}
+      gpsBusy = false;
+    }
+    gpsTimer = setTimeout(pollGPS, 2500);
+  }
+  function posAt(arr, t) {
+    if (!arr || !arr.length) return null;
+    let i = arr.length - 1; while (i > 0 && arr[i][0] > t) i--;
+    const a = arr[i], b = arr[i + 1];
+    if (!b || a[0] > t) return { x: a[1], y: a[2], old: t - a[0] > 8000 };
+    const f = Math.min(1, Math.max(0, (t - a[0]) / Math.max(1, b[0] - a[0])));
+    return { x: a[1] + (b[1] - a[1]) * f, y: a[2] + (b[2] - a[2]) * f, old: false };
+  }
+
+  // ---------- mapa ----------
+  const cv = $("map"), cx = cv.getContext("2d");
+  let playT = 0, lastFrame = 0, hits = [];
+  const CF = "'Barlow Semi Condensed', system-ui, sans-serif";
+  function drawMap(now) {
+    requestAnimationFrame(drawMap);
+    if (view !== "map" || !S) return;
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const W = cv.clientWidth, H = cv.clientHeight;
+    if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
+    cx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    cx.clearRect(0, 0, W, H);
+    const T = S.track;
+    if (!T) { cx.fillStyle = "#7f8da0"; cx.font = "600 15px " + CF; cx.textAlign = "center"; cx.fillText("Armando el trazado con el GPS…", W / 2, H / 2); cx.fillText("(necesita una vuelta completa en la sesión)", W / 2, H / 2 + 20); return; }
+    const [x0, x1, y0, y1] = T.box, m = 28;
+    const sc = Math.min((W - 2 * m) / (x1 - x0), (H - 2 * m) / (y1 - y0));
+    const ox = (W - (x1 - x0) * sc) / 2 - x0 * sc, oy = (H - (y1 - y0) * sc) / 2 - y0 * sc;
+    const X = (p) => p[0] * sc + ox, Y = (p) => p[1] * sc + oy;
+    cx.lineJoin = "round"; cx.lineCap = "round";
+    const path = () => { cx.beginPath(); T.P.forEach((p, i) => (i ? cx.lineTo(X(p), Y(p)) : cx.moveTo(X(p), Y(p)))); cx.closePath(); };
+    const ts = trackState();
+    path(); cx.strokeStyle = "#1c2838"; cx.lineWidth = 13; cx.stroke();
+    path(); cx.strokeStyle = ts.st === "red" ? "#ff314f" : ts.st === "sc" ? "#ff9f1a" : "#d9e2ec"; cx.lineWidth = 3.5; cx.stroke();
+    // sector con amarilla
+    if (ts.st === "yellow" && ts.sector) {
+      const nS = S.sectorsN || 20, a = Math.floor(((ts.sector - 1) / nS) * T.P.length), b = Math.floor((ts.sector / nS) * T.P.length);
+      cx.beginPath(); for (let i = a; i <= b && i < T.P.length; i++) (i === a ? cx.moveTo(X(T.P[i]), Y(T.P[i])) : cx.lineTo(X(T.P[i]), Y(T.P[i]))); cx.strokeStyle = "#ffd400"; cx.lineWidth = 6; cx.stroke();
+    }
+    cx.fillStyle = "#fff"; cx.fillRect(X(T.start) - 6, Y(T.start) - 1.5, 12, 3);
+    const target = Date.now() - Math.min(20000, Math.max(3500, (lagEMA || 3000) + 2500));
+    const dt = lastFrame ? now - lastFrame : 0; lastFrame = now;
+    if (!playT || Math.abs(target - playT) > 15000) playT = target; else playT += dt * (1 + Math.max(-0.25, Math.min(0.25, (target - playT) / 8000)));
+    const order = Object.keys(S.drivers).map(Number).sort((a, b) => (S.pos[b] || 99) - (S.pos[a] || 99));
+    let shown = 0; hits = [];
+    for (const n of order.filter((x) => x !== fav).concat(fav && S.drivers[fav] ? [fav] : [])) {
+      const p = posAt(S.loc[n], playT); if (!p) continue; shown++;
+      const q2 = T.tf(p.x, p.y), px = X(q2), py = Y(q2);
+      const d = S.drivers[n], col = "#" + (d.team_colour || "888"), me = n === fav;
+      hits.push([px, py, n]);
+      cx.globalAlpha = p.old ? 0.35 : 1;
+      cx.beginPath(); cx.arc(px, py, me ? 8 : 6, 0, 7); cx.fillStyle = col; cx.fill(); cx.lineWidth = me ? 3 : 1.5; cx.strokeStyle = me ? "#00d8ff" : "#05080c"; cx.stroke();
+      cx.font = `800 ${me ? 13 : 11}px ${CF}`; cx.textAlign = "left";
+      const label = (S.pos[n] ? S.pos[n] + " " : "") + (d.name_acronym || n);
+      const tw = cx.measureText(label).width;
+      cx.fillStyle = me ? "#00d8ff" : "#0a1018e0"; cx.fillRect(px + 8, py - 8, tw + 6, 15);
+      cx.fillStyle = me ? "#001018" : "#eef3f8"; cx.fillText(label, px + 11, py + 4);
+      cx.globalAlpha = 1;
+    }
+    $("maptag").innerHTML = shown ? `GPS · <b>${Math.round((Date.now() - playT) / 1000)} s</b> DE RETRASO` : "ESPERANDO GPS…";
+  }
+  requestAnimationFrame(drawMap);
+  cv.addEventListener("click", (e) => {
+    const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+    let best = null, bd = 26 * 26;
+    for (const [px, py, n] of hits) { const d = (px - x) ** 2 + (py - y) ** 2; if (d < bd) { bd = d; best = n; } }
+    if (best) openSheet(best);
+  });
+
+  // ---------- lógica de sesión ----------
+  const typ = () => (S?.sess.session_type || "").toLowerCase();
+  const isRace = () => typ() === "race";
+  const isQuali = () => typ() === "qualifying";
+  const isSprint = () => /sprint/i.test(S?.sess.session_name || "") && isRace();
+  const fmt = (s) => { if (!(s > 0)) return "—"; const m = Math.floor(s / 60); const r = (s - m * 60).toFixed(3).padStart(6, "0"); return m ? `${m}:${r}` : (+r).toFixed(3); };
+  const fs = (s) => (s > 0 ? s.toFixed(3) : "—");
+  const fmtClock = (ms) => { ms = Math.max(0, ms); const t = Math.floor(ms / 1000); const h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), s = t % 60; return h ? `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}` : `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`; };
+  const hhmm = (d) => new Date(d).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" });
+
+  function deletedSet() {
+    const del = new Set();
+    for (const m of S.rc) { const x = /CAR (\d+).*TIME ([\d:.]+) DELETED/i.exec(m.message || ""); if (x) del.add(x[1] + "|" + x[2]); }
+    return del;
+  }
+  function qPhase() {
+    let ph = 0, start = null;
+    for (const m of S.rc) if (m.qualifying_phase && m.qualifying_phase > ph) { ph = m.qualifying_phase; start = m.date; }
+    return { ph: ph || 1, start };
+  }
+  function trackState() {
+    let st = "green", txt = "PISTA VERDE", sector = 0;
+    const yel = new Map();
+    for (const m of S.rc) {
+      const msg = (m.message || "").toUpperCase(), f = (m.flag || "").toUpperCase();
+      if (m.scope === "Sector" && m.sector) { if (f === "YELLOW" || f === "DOUBLE YELLOW") yel.set(m.sector, f); else if (f === "CLEAR" || f === "GREEN") yel.delete(m.sector); }
+      if (f === "RED") { st = "red"; txt = "BANDERA ROJA"; yel.clear(); }
+      else if (f === "CHEQUERED") { st = "chq"; txt = "BANDERA A CUADROS"; }
+      else if (/VIRTUAL SAFETY CAR DEPLOYED/.test(msg)) { st = "sc"; txt = "VIRTUAL SAFETY CAR"; }
+      else if (/SAFETY CAR DEPLOYED/.test(msg)) { st = "sc"; txt = "SAFETY CAR"; }
+      else if (/SAFETY CAR IN THIS LAP|VSC ENDING|VIRTUAL SAFETY CAR ENDING/.test(msg)) { st = "sc"; txt = /VIRTUAL|VSC/.test(msg) ? "VSC TERMINANDO" : "SC ENTRA ESTA VUELTA"; }
+      else if ((f === "GREEN" || f === "CLEAR" || /GREEN LIGHT|TRACK CLEAR/.test(msg)) && m.scope !== "Sector") { if (st !== "chq") { st = "green"; txt = "PISTA VERDE"; } yel.clear(); }
+    }
+    if (st === "green" && yel.size) {
+      const [sec, f] = [...yel.entries()].pop();
+      st = "yellow"; sector = sec; txt = (f === "DOUBLE YELLOW" ? "DOBLE AMARILLA" : "AMARILLA") + " · SECTOR " + [...yel.keys()].join(", ");
+    }
+    return { st, txt, sector };
+  }
+  function clock() {
+    const now = Date.now(), s = S.sess;
+    const start = new Date(s.date_start).getTime(), end = new Date(s.date_end).getTime();
+    if (isRace()) {
+      let lap = 0; for (const n in S.laps) for (const l in S.laps[n]) lap = Math.max(lap, +l);
+      const tot = isSprint() ? 0 : TOTAL_LAPS[s.circuit_short_name] || TOTAL_LAPS[s.location] || 0;
+      if (now < start) return { lab: "EMPIEZA EN", txt: fmtClock(start - now) };
+      return { lab: "VUELTA", txt: tot ? `${lap}/${tot}` : String(lap || "—") };
+    }
+    if (isQuali()) {
+      const dur = (/sprint/i.test(s.session_name) ? [12, 10, 8] : [18, 15, 13]).map((x) => x * 60000);
+      const { ph } = qPhase();
+      let ps = null, paused = 0, redAt = null, ended = false;
+      for (const m of S.rc) {
+        if ((m.qualifying_phase || 1) !== ph) continue;
+        const ts = new Date(m.date).getTime(), msg = (m.message || "").toUpperCase(), f = (m.flag || "").toUpperCase();
+        if (ps == null && /GREEN LIGHT/.test(msg)) { ps = ts; continue; }
+        if (ps == null) continue;
+        if (f === "RED" && redAt == null) redAt = ts;
+        else if (redAt != null && /GREEN LIGHT|PIT EXIT OPEN/.test(msg)) { paused += ts - redAt; redAt = null; }
+        if (f === "CHEQUERED" || /WILL NOT BE RESUMED/.test(msg)) ended = true;
+      }
+      if (now < start) return { lab: "EMPIEZA EN", txt: fmtClock(start - now) };
+      if (ps == null) return { lab: "Q" + ph, txt: fmtClock(dur[ph - 1] || 0) };
+      const ref = redAt != null ? redAt : now;
+      return { lab: "Q" + ph + (redAt != null ? " · PAUSA" : ended ? " · FIN" : ""), txt: ended ? "00:00" : fmtClock(dur[ph - 1] - (ref - ps - paused)) };
+    }
+    if (now < start) return { lab: "EMPIEZA EN", txt: fmtClock(start - now) };
+    return { lab: "RESTANTE", txt: fmtClock(end - now) };
+  }
+
+  function stats(scope) {
+    const del = deletedSet();
+    const { start: phStart } = isQuali() ? qPhase() : {};
+    const inScope = (l) => !(scope === "phase" && phStart && l.date_start < phStart);
+    const valid = (n, l) => l.lap_duration > 0 && !l.is_pit_out_lap && !del.has(n + "|" + fmt(l.lap_duration)) && inScope(l);
+    const best = { lap: 0, s: [0, 0, 0], sBy: [0, 0, 0], st: 0, stBy: 0 };
+    const per = {};
+    for (const n in S.laps) {
+      const p = (per[n] = { best: 0, bestL: null, s: [0, 0, 0], st: 0, laps: [], dels: 0 });
+      for (const l of Object.values(S.laps[n])) {
+        p.laps.push(l);
+        if (del.has(n + "|" + fmt(l.lap_duration))) p.dels++;
+        if (l.st_speed > p.st) p.st = l.st_speed;
+        if (l.st_speed > best.st) { best.st = l.st_speed; best.stBy = +n; }
+        if (!l.is_pit_out_lap && inScope(l)) [l.duration_sector_1, l.duration_sector_2, l.duration_sector_3].forEach((v, i) => {
+          if (v > 0) { if (!p.s[i] || v < p.s[i]) p.s[i] = v; if (!best.s[i] || v < best.s[i]) { best.s[i] = v; best.sBy[i] = +n; } }
+        });
+        if (valid(n, l) && (!p.best || l.lap_duration < p.best)) { p.best = l.lap_duration; p.bestL = l; }
+      }
+      p.laps.sort((a, b) => a.lap_number - b.lap_number);
+      if (p.best && (!best.lap || p.best < best.lap)) { best.lap = p.best; best.lapBy = +n; }
+      p.ideal = p.s[0] && p.s[1] && p.s[2] ? p.s[0] + p.s[1] + p.s[2] : 0;
+    }
+    return { best, per, valid };
+  }
+  const secCls = (v, mine, ob) => (!(v > 0) ? "" : v <= ob + 1e-6 ? "ob" : v <= mine + 1e-6 ? "pb" : "yl");
+  const msHTML = (arr) => (arr && arr.length ? `<div class="ms">${arr.map((c) => `<span class="m${String(c).slice(-2)}"></span>`).join("")}</div>` : "");
+
+  function buildRows() {
+    const quali = isQuali(), race = isRace();
+    const st = stats(quali ? "phase" : "all");
+    const out = [];
+    for (const n in S.drivers) {
+      const p = st.per[n] || { best: 0, s: [0, 0, 0], st: 0, laps: [] };
+      const laps = p.laps, last = laps[laps.length - 1];
+      let lastDone = null; for (const l of laps) if (l.lap_duration > 0) lastDone = l;
+      const show = last && last.duration_sector_1 > 0 && !(last.lap_duration > 0) ? last : lastDone || last;
+      const stint = S.stints[n], pits = S.pits[n] || [];
+      let tag = "";
+      if (last && last.is_pit_out_lap && !(last.lap_duration > 0)) tag = "out";
+      const lp = pits[pits.length - 1];
+      if (lp && last && lp.lap_number >= last.lap_number && !race) tag = "pit";
+      if (!tag && show && show === last && !(last.lap_duration > 0) && [show.duration_sector_1, show.duration_sector_2].some((v, i) => v > 0 && v <= (p.s[i] || 0) + 1e-6)) tag = "push";
+      const nLaps = last ? last.lap_number : 0;
+      out.push({ n: +n, d: S.drivers[n], pos: S.pos[n] || 99, p, show, lastDone, nLaps, tyre: stint ? (stint.compound || "")[0] : "", age: stint ? (stint.tyre_age_at_start || 0) + Math.max(0, nLaps - stint.lap_start) : 0, intv: S.intv[n], stops: pits.length, tag, grid: S.grid[n] });
+    }
+    out.sort((a, b) => a.pos - b.pos || (a.p.best || 1e9) - (b.p.best || 1e9));
+    return { out, st };
+  }
+
+  // ---------- pintar ----------
+  function setStatus(t, cls) { $("st").textContent = t; $("dot").className = "dot " + (cls || ""); }
+  const NAMES = { "Practice 1": "PRÁCTICA 1", "Practice 2": "PRÁCTICA 2", "Practice 3": "PRÁCTICA 3", Qualifying: "CLASIFICACIÓN", "Sprint Qualifying": "CLASIFICACIÓN SPRINT", "Sprint Shootout": "CLASIFICACIÓN SPRINT", Sprint: "SPRINT", Race: "CARRERA" };
+  const sName = (s) => (NAMES[s.session_name] || s.session_name || "").toUpperCase();
+  function renderHead() {
+    const s = S.sess;
+    $("sname").textContent = sName(s);
+    $("ssub").textContent = `${(s.location || s.circuit_short_name || "").toUpperCase()} · ${s.year}`;
+  }
+  const dname = (d) => (d ? d.last_name || d.broadcast_name || d.name_acronym || "" : "").toUpperCase();
+  const dcol = (n) => "#" + ((S.drivers[n] || {}).team_colour || "888");
+
+  function render() {
+    if (!S) return;
+    const ts = trackState();
+    $("flag").className = "flag " + (ts.st === "green" ? "" : ts.st); $("flag").textContent = ts.txt;
+    tickClock();
+    const w = S.wx;
+    $("wx").innerHTML = w ? `<span>AIRE <b>${Math.round(w.air_temperature)}°</b> · PISTA <b>${Math.round(w.track_temperature)}°</b></span><span>${w.rainfall ? '<b style="color:var(--cyan)">LLUVIA</b>' : "SIN LLUVIA"} · VIENTO <b>${Math.round((w.wind_speed || 0) * 3.6)}</b> km/h</span>` : "";
+    renderTower(); renderLaps(); renderRC(); renderChips(); renderInfo(); renderChamp();
+    if (openN) renderSheet(openN);
+    if (S.lastOk && Date.now() - S.lastOk < rate * 3000 + 10000) setStatus("EN VIVO", "ok");
+  }
+
+  function renderTower() {
+    const race = isRace(), quali = isQuali();
+    $("towerbox").className = dens === "compact" ? "compact" : "";
+    document.querySelectorAll("#dens button").forEach((b) => b.classList.toggle("on", b.dataset.d === dens));
+    $("hd").innerHTML = race ? "<span>P</span><span></span><span>PILOTO</span><span>INTERV.</span><span>LÍDER</span><span>N</span>" : "<span>P</span><span></span><span>PILOTO</span><span>MEJOR</span><span>DIF.</span><span>N</span>";
+    const { out, st } = buildRows();
+    const ob = st.best.lap, N = out.length;
+    const ph = quali ? qPhase().ph : 0;
+    const safe = ph === 1 ? N - 6 : ph === 2 ? N - 12 : 10;
+    const alive = ph === 1 ? N : ph === 2 ? N - 6 : N - 12;
+    let h = "";
+    for (const r of out) {
+      if (quali && ph < 3 && r.pos === safe + 1) h += `<div class="cut">ZONA DE ELIMINACIÓN · Q${ph}</div>`;
+      if (quali && ph > 1 && r.pos === alive + 1) h += `<div class="cut red">ELIMINADOS</div>`;
+      const d = r.d, col = "#" + (d.team_colour || "888");
+      const tg = r.tag === "pit" ? '<span class="tag pit">BOX</span>' : r.tag === "out" ? '<span class="tag out">OUT</span>' : r.tag === "push" ? '<span class="tag push">PUSH</span>' : "";
+      let a, b, gd = "";
+      if (race) {
+        const fv = (v) => (v == null ? "—" : typeof v === "number" ? "+" + v.toFixed(3) : String(v));
+        a = `<div class="v">${r.pos === 1 ? "LÍDER" : esc(fv(r.intv && r.intv.interval))}<small>${fmt(r.lastDone && r.lastDone.lap_duration)}</small></div>`;
+        b = `<div class="v">${r.pos === 1 ? "—" : esc(fv(r.intv && r.intv.gap_to_leader))}<small>${r.stops} PIT</small></div>`;
+        if (r.grid && r.pos < 99) { const g = r.grid - r.pos; gd = g > 0 ? `<span class="gd up">▲${g}</span>` : g < 0 ? `<span class="gd dn">▼${-g}</span>` : ""; }
+      } else {
+        const lastT = r.lastDone && r.lastDone.lap_duration;
+        const lc = lastT && ob && lastT > ob * 1.3 ? "—" : fmt(lastT);
+        const lcls = lastT && r.lastDone === r.p.bestL ? (r.p.best <= ob + 1e-6 ? "ob" : "pb") : "";
+        a = `<div class="v ${r.p.best && r.p.best <= ob + 1e-6 ? "ob" : ""}">${fmt(r.p.best)}<small class="${lcls}">${lc}</small></div>`;
+        const diff = r.p.best && ob ? (r.p.best - ob < 0.0005 ? "—" : "+" + (r.p.best - ob).toFixed(3)) : "—";
+        b = `<div class="v">${diff}<small>${r.nLaps} V</small></div>`;
+      }
+      const ty = r.tyre ? `<div class="ty ty-${esc(r.tyre)}">${esc(r.tyre)}</div>` : `<div class="ty">·</div>`;
+      const sh = r.show || {};
+      const sv = [sh.duration_sector_1, sh.duration_sector_2, sh.duration_sector_3];
+      const segs = [sh.segments_sector_1, sh.segments_sector_2, sh.segments_sector_3];
+      const secs = sv.map((v, i) => `<div class="sec ${secCls(v, r.p.s[i], st.best.s[i])}"><i>S${i + 1}</i>${fs(v)}${msHTML(segs[i])}</div>`).join("") + `<div class="spd">${sh.st_speed ? sh.st_speed + " km/h" : ""}</div>`;
+      const cls = ["row"]; if (r.n === fav) cls.push("fav");
+      if (quali && r.pos > alive && r.pos < 99) cls.push("out"); else if (quali && ph < 3 && r.pos > safe && r.pos < 99) cls.push("danger");
+      const nm = dens === "compact" ? `${esc(d.name_acronym || "")} <span style="font-weight:600;color:var(--mut);font-size:12px">${esc(dname(d))}</span>` : esc(dname(d));
+      h += `<div data-n="${r.n}" class="${cls.join(" ")}" style="--team:${esc(col)}"><div class="p">${r.pos < 99 ? r.pos : "–"}</div><div class="bar"></div><div class="nm"><b>${nm}${gd}${dens === "compact" ? tg : ""}</b><small>${tg}<span>${esc(d.team_name || "")}</span>${r.tyre ? `<span>· LLANTA ${r.age} V</span>` : ""}</small></div>${a}${b}${ty}<div class="secs">${secs}</div></div>`;
+    }
+    $("rows").innerHTML = h || '<div class="empty">Sin datos todavía</div>';
+  }
+
+  function li(i, n, main, sub, right, rsub, cls) {
+    return `<div class="li${+n === fav ? " fav" : ""}" data-n="${n}" style="--team:${esc(dcol(n))}"><span class="n">${i}</span><span class="bar" style="height:22px"></span><span><b>${esc(main)}</b><small>${sub}</small></span><span class="r ${cls || ""}">${right}${rsub ? `<small>${rsub}</small>` : ""}</span></div>`;
+  }
+  function strategyHTML() {
+    const ns = Object.keys(S.drivers).map(Number).sort((a, b) => (S.pos[a] || 99) - (S.pos[b] || 99));
+    let maxLap = 1; for (const n in S.laps) for (const l in S.laps[n]) maxLap = Math.max(maxLap, +l);
+    const tot = isRace() && !isSprint() ? Math.max(maxLap, TOTAL_LAPS[S.sess.circuit_short_name] || 0) : maxLap;
+    const rows = ns.map((n) => {
+      const ss = S.stintAll[n] || [];
+      const segs = ss.map((s) => {
+        const a = s.lap_start || 1, b = s.lap_end || maxLap;
+        const c = ((s.compound || "U")[0] || "U").toUpperCase();
+        return `<span class="c-${"SMHIW".includes(c) ? c : "U"}" style="left:${((a - 1) / tot) * 100}%;width:${(Math.max(1, b - a + 1) / tot) * 100}%">${b - a + 1 >= 3 ? b - a + 1 : ""}</span>`;
+      }).join("");
+      return `<div class="sr" data-n="${n}"><b style="color:${esc(dcol(n))}">${esc(S.drivers[n].name_acronym || n)}</b><div class="tr">${segs}</div></div>`;
+    }).join("");
+    return `<div class="card"><h2>ESTRATEGIA DE LLANTAS <small>VUELTAS POR STINT</small></h2><div class="strat">${rows}</div><div class="legend"><span><i class="c-S"></i>BLANDA</span><span><i class="c-M"></i>MEDIA</span><span><i class="c-H"></i>DURA</span><span><i class="c-I"></i>INTER</span><span><i class="c-W"></i>LLUVIA</span></div></div>`;
+  }
+  function renderLaps() {
+    const quali = isQuali(), scope = quali ? lapsScope : "all";
+    const st = stats(scope);
+    const name = (n) => dname(S.drivers[n]) || "#" + n;
+    let h = "";
+    if (quali) h += `<div class="seg" style="padding:0 0 12px"><button data-sc="phase" class="${scope === "phase" ? "on" : ""}">FASE ACTUAL (Q${qPhase().ph})</button><button data-sc="all" class="${scope === "all" ? "on" : ""}">TODA LA QUALY</button></div>`;
+    const ideal = st.best.s[0] && st.best.s[1] && st.best.s[2] ? st.best.s[0] + st.best.s[1] + st.best.s[2] : 0;
+    h += `<div class="card"><h2>MEJORES SECTORES <small>VUELTA IDEAL ${fmt(ideal)}</small></h2><div class="trio">${[0, 1, 2].map((i) => `<div><small>SECTOR ${i + 1}</small><b>${fs(st.best.s[i])}</b><span>${st.best.sBy[i] ? esc(S.drivers[st.best.sBy[i]]?.name_acronym || "") : "—"}</span></div>`).join("")}</div></div>`;
+    const bests = Object.keys(st.per).filter((n) => st.per[n].best && S.drivers[n]).sort((a, b) => st.per[a].best - st.per[b].best);
+    const ob = bests.length ? st.per[bests[0]].best : 0;
+    h += `<div class="card"><h2>MEJOR VUELTA POR PILOTO <small>${bests.length} PILOTOS</small></h2>` + (bests.map((n, i) => { const p = st.per[n], l = p.bestL; const t = S.stintAll[n]?.find((s) => l.lap_number >= s.lap_start && (!s.lap_end || l.lap_number <= s.lap_end)); return li(i + 1, n, name(n), `V${l.lap_number}${t ? " · " + esc((t.compound || "")[0]) : ""} · <span class="${secCls(l.duration_sector_1, p.s[0], st.best.s[0])}">${fs(l.duration_sector_1)}</span> / <span class="${secCls(l.duration_sector_2, p.s[1], st.best.s[1])}">${fs(l.duration_sector_2)}</span> / <span class="${secCls(l.duration_sector_3, p.s[2], st.best.s[2])}">${fs(l.duration_sector_3)}</span>`, fmt(p.best), i ? "+" + (p.best - ob).toFixed(3) : "", i ? "" : "ob"); }).join("") || '<div class="empty">Sin vueltas completas</div>') + `</div>`;
+    h += strategyHTML();
+    const ideals = Object.keys(st.per).filter((n) => st.per[n].ideal && S.drivers[n]).sort((a, b) => st.per[a].ideal - st.per[b].ideal);
+    h += `<div class="card"><h2>VUELTA IDEAL POR PILOTO <small>SUMA DE SUS MEJORES SECTORES</small></h2>` + (ideals.map((n, i) => { const p = st.per[n]; return li(i + 1, n, name(n), p.best ? `Le dejó ${(p.best - p.ideal).toFixed(3)} s en la mesa` : "Sin vuelta válida", fmt(p.ideal), "", i ? "" : "ob"); }).join("") || '<div class="empty">—</div>') + `</div>`;
+    const all = [];
+    for (const n in st.per) for (const l of st.per[n].laps) if (st.valid(n, l) && S.drivers[n]) all.push([n, l]);
+    all.sort((a, b) => a[1].lap_duration - b[1].lap_duration);
+    h += `<div class="card"><h2>TOP 10 VUELTAS</h2>` + (all.slice(0, 10).map(([n, l], i) => li(i + 1, n, name(n), `Vuelta ${l.lap_number}`, fmt(l.lap_duration), i ? "+" + (l.lap_duration - all[0][1].lap_duration).toFixed(3) : "", i ? "" : "ob")).join("") || '<div class="empty">—</div>') + `</div>`;
+    const sp = Object.keys(st.per).filter((n) => st.per[n].st && S.drivers[n]).sort((a, b) => st.per[b].st - st.per[a].st);
+    h += `<div class="card"><h2>VELOCIDAD MÁXIMA <small>TRAMPA DE VELOCIDAD</small></h2>` + (sp.map((n, i) => li(i + 1, n, name(n), esc(S.drivers[n].team_name || ""), st.per[n].st + " km/h", "", i ? "" : "ob")).join("") || '<div class="empty">—</div>') + `</div>`;
+    const tl = Object.keys(st.per).filter((n) => st.per[n].dels && S.drivers[n]).sort((a, b) => st.per[b].dels - st.per[a].dels);
+    if (tl.length) h += `<div class="card"><h2>TIEMPOS BORRADOS <small>LÍMITES DE PISTA</small></h2>` + tl.map((n, i) => li(i + 1, n, name(n), "", st.per[n].dels, "", "yl")).join("") + `</div>`;
+    const pl = []; for (const n in S.pits) for (const p of S.pits[n]) if (S.drivers[n]) pl.push([n, p]);
+    if (pl.length && (isRace() || pl.some(([, p]) => p.stop_duration))) {
+      pl.sort((a, b) => (b[1].lap_number || 0) - (a[1].lap_number || 0));
+      const fastest = pl.filter(([, p]) => p.stop_duration).sort((a, b) => a[1].stop_duration - b[1].stop_duration)[0];
+      h += `<div class="card"><h2>PARADAS EN PITS <small>${fastest ? "MÁS RÁPIDA " + fastest[1].stop_duration.toFixed(1) + " s · " + esc(S.drivers[fastest[0]].name_acronym) : ""}</small></h2>` + pl.map(([n, p]) => li(p.lap_number || "", n, name(n), `Vuelta ${p.lap_number || "—"}`, p.stop_duration ? p.stop_duration.toFixed(1) + " s" : p.pit_duration ? p.pit_duration.toFixed(1) + " s" : "—", p.stop_duration ? "PARADA" : "CALLE")).join("") + `</div>`;
+    }
+    $("lapsv").innerHTML = h;
+  }
+
+  function renderChamp() {
+    if (!S) return;
+    const c = S.champ;
+    if (!c) { $("champv").innerHTML = '<div class="empty">Cargando campeonato… (OpenF1 lo publica después de cada carrera)</div>'; return; }
+    const live = isRace() && Object.keys(S.pos).length && new Date(S.sess.date_start).getTime() < Date.now();
+    const table = live ? (isSprint() ? SPRINT_PTS : RACE_PTS) : null;
+    const add = (n) => (table && S.pos[n] && S.pos[n] <= table.length ? table[S.pos[n] - 1] : 0);
+    const dr = c.dr.map((r) => ({ n: r.driver_number, pts: r.points_current, posC: r.position_current, posS: r.position_start, ptsS: r.points_start, proj: r.points_current + add(r.driver_number) }));
+    if (table) dr.sort((a, b) => b.proj - a.proj); else dr.sort((a, b) => a.posC - b.posC);
+    const lead = dr.length ? (table ? dr[0].proj : dr[0].pts) : 0;
+    const teamPts = {};
+    if (table) for (const r of dr) { const t = S.drivers[r.n]?.team_name; if (t) teamPts[t] = (teamPts[t] || 0) + add(r.n); }
+    const tm = c.tm.map((t) => ({ ...t, proj: t.points_current + (teamPts[t.team_name] || 0) })).sort((a, b) => (table ? b.proj - a.proj : a.position_current - b.position_current));
+    const teamCol = (name) => { const d = Object.values(S.drivers).find((x) => x.team_name === name); return "#" + ((d && d.team_colour) || "888"); };
+    const after = c.after;
+    let h = `<div class="card"><h2>PILOTOS <small>${table ? "EN VIVO · PROYECTADO CON LA POSICIÓN ACTUAL" : "DESPUÉS DE " + esc(sName(after)) + " · " + esc((after.location || "").toUpperCase())}</small></h2>`;
+    h += dr.map((r, i) => {
+      const d = S.drivers[r.n] || {}, gain = table ? add(r.n) : r.pts - (r.ptsS || 0);
+      const mv = (r.posS && r.posC) ? r.posS - r.posC : 0;
+      const sub = `${esc(d.team_name || "")}${i ? ` · a ${(table ? lead - r.proj : lead - r.pts)} pts` : " · LÍDER"}${!table && mv ? ` <span class="pd ${mv > 0 ? "up" : "dn"}">${mv > 0 ? "▲" + mv : "▼" + -mv}</span>` : ""}`;
+      return li(i + 1, r.n, dname(d) || "#" + r.n, sub, `<span class="pts ${table && gain ? "proj" : ""}">${table ? r.proj : r.pts}</span>`, gain ? `+${gain}` : "", "");
+    }).join("") + `</div>`;
+    h += `<div class="card"><h2>CONSTRUCTORES</h2>` + tm.map((t, i) => `<div class="li" style="--team:${esc(teamCol(t.team_name))}"><span class="n">${i + 1}</span><span class="bar" style="height:22px"></span><span><b>${esc((t.team_name || "").toUpperCase())}</b><small>${i ? "a " + ((table ? tm[0].proj : tm[0].points_current) - (table ? t.proj : t.points_current)) + " pts" : "LÍDER"}</small></span><span class="r"><span class="pts">${table ? t.proj : t.points_current}</span>${table && teamPts[t.team_name] ? `<small>+${teamPts[t.team_name]}</small>` : ""}</span></div>`).join("") + `</div>`;
+    $("champv").innerHTML = h;
+  }
+
+  function spark(series, H) {
+    const W = 340, pad = 26;
+    const all = series.flatMap((s) => s.pts);
+    if (all.length < 2) return '<div class="empty">Juntando datos…</div>';
+    const t0 = Math.min(...all.map((p) => p[0])), t1 = Math.max(...all.map((p) => p[0]));
+    let v0 = Math.min(...all.map((p) => p[1])), v1 = Math.max(...all.map((p) => p[1]));
+    if (v1 - v0 < 4) { v0 -= 2; v1 += 2; }
+    const X = (t) => pad + ((t - t0) / Math.max(1, t1 - t0)) * (W - pad - 8), Y = (v) => 10 + (1 - (v - v0) / (v1 - v0)) * (H - 30);
+    let g = "";
+    for (let k = 0; k <= 3; k++) { const v = v0 + ((v1 - v0) * k) / 3; g += `<line x1="${pad}" x2="${W - 8}" y1="${Y(v)}" y2="${Y(v)}" stroke="#1b2532"/><text x="2" y="${Y(v) + 4}" fill="#7f8da0" font-size="10" font-weight="700">${Math.round(v)}°</text>`; }
+    g += `<text x="${pad}" y="${H - 4}" fill="#7f8da0" font-size="10" font-weight="700">${hhmm(t0)}</text><text x="${W - 8}" y="${H - 4}" fill="#7f8da0" font-size="10" font-weight="700" text-anchor="end">${hhmm(t1)}</text>`;
+    for (const s of series) g += `<polyline fill="none" stroke="${s.col}" stroke-width="2.5" stroke-linejoin="round" points="${s.pts.map((p) => X(p[0]).toFixed(1) + "," + Y(p[1]).toFixed(1)).join(" ")}"/>`;
+    return `<svg class="chart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="height:${H}px;font-family:${CF}">${g}</svg>`;
+  }
+  const DIRS = ["N", "NE", "E", "SE", "S", "SO", "O", "NO"];
+  function renderInfo() {
+    const w = S.wx;
+    let h = "";
+    if (w) {
+      const wind = Math.round((w.wind_speed || 0) * 3.6), dir = w.wind_direction || 0;
+      h += `<div class="card"><h2>CLIMA EN PISTA <small>${hhmm(w.date)}</small></h2><div class="tiles">
+        <div><small>AIRE</small><b>${w.air_temperature.toFixed(1)}°</b></div>
+        <div><small>PISTA</small><b style="color:var(--orange)">${w.track_temperature.toFixed(1)}°</b></div>
+        <div><small>HUMEDAD</small><b>${Math.round(w.humidity)}<em>%</em></b></div>
+        <div><small>VIENTO</small><b>${wind}<em>km/h</em></b></div>
+        <div><small>DIRECCIÓN</small><b><svg class="arrow" viewBox="0 0 24 24" style="transform:rotate(${dir + 180}deg)"><path d="M12 2l6 18-6-4-6 4z" fill="currentColor"/></svg>${DIRS[Math.round(dir / 45) % 8]}</b></div>
+        <div><small>PRESIÓN</small><b>${Math.round(w.pressure)}<em>mbar</em></b></div>
+        <div><small>LLUVIA</small><b style="color:${w.rainfall ? "var(--cyan)" : "var(--green)"}">${w.rainfall ? "SÍ" : "NO"}</b></div>
+        <div><small>PISTA − AIRE</small><b>${(w.track_temperature - w.air_temperature).toFixed(1)}°</b></div>
+        <div><small>TENDENCIA PISTA</small><b>${trend()}</b></div></div></div>`;
+      const pts = (k) => S.wxAll.map((x) => [new Date(x.date).getTime(), x[k]]);
+      h += `<div class="card"><h2>TEMPERATURA EN LA SESIÓN <small><span style="color:var(--orange)">PISTA</span> · <span style="color:var(--cyan)">AIRE</span></small></h2><div style="padding:8px 8px 4px">${spark([{ pts: pts("track_temperature"), col: "#ff9f1a" }, { pts: pts("air_temperature"), col: "#00d8ff" }], 150)}</div></div>`;
+    } else h += '<div class="card"><div class="empty">Sin datos de clima todavía</div></div>';
+    // horario del fin de semana
+    const ms = S.year.filter((s) => s.meeting_key === S.sess.meeting_key);
+    const now = Date.now();
+    const nextS = ms.find((s) => new Date(s.date_start).getTime() > now);
+    h += `<div class="card"><h2>HORARIO DEL FIN DE SEMANA <small>HORA DE TU CELULAR</small></h2>` + ms.map((s) => {
+      const a = new Date(s.date_start).getTime(), b = new Date(s.date_end).getTime();
+      const stt = now >= a && now <= b + 10 * 60000 ? '<span class="s live">EN VIVO</span>' : now > b ? '<span class="s">TERMINADA</span>' : s === nextS ? `<span class="s next">EN ${fmtClock(a - now)}</span>` : '<span class="s">PRÓXIMA</span>';
+      const day = new Date(a).toLocaleDateString("es-MX", { weekday: "long", day: "numeric", month: "short" });
+      return `<div class="sch"><span><b>${esc(sName(s))}</b><br><small>${esc(day)} · ${hhmm(a)}</small></span>${stt}</div>`;
+    }).join("") + `</div>`;
+    // siguientes carreras
+    const nextRaces = S.year.filter((s) => s.session_name === "Race" && new Date(s.date_start).getTime() > now && s.meeting_key !== S.sess.meeting_key).slice(0, 4);
+    if (nextRaces.length) h += `<div class="card"><h2>PRÓXIMAS CARRERAS</h2>` + nextRaces.map((s) => `<div class="sch"><span><b>${esc((s.location || s.country_name || "").toUpperCase())}</b><br><small>${esc(new Date(s.date_start).toLocaleDateString("es-MX", { weekday: "long", day: "numeric", month: "long" }))} · ${hhmm(s.date_start)}</small></span><span class="s">${esc(s.country_code || "")}</span></div>`).join("") + `</div>`;
+    $("infov").innerHTML = h;
+  }
+  function trend() {
+    const a = S.wxAll; if (a.length < 4) return "—";
+    const now = a[a.length - 1], t = new Date(now.date).getTime() - 10 * 60000;
+    const old = a.find((x) => new Date(x.date).getTime() >= t) || a[0];
+    const d = now.track_temperature - old.track_temperature;
+    return Math.abs(d) < 0.4 ? "ESTABLE" : d > 0 ? `<span style="color:var(--orange)">▲ ${d.toFixed(1)}°</span>` : `<span style="color:var(--cyan)">▼ ${(-d).toFixed(1)}°</span>`;
+  }
+
+  function es(t) {
+    t = String(t || "").toUpperCase();
+    const rep = [
+      [/GREEN LIGHT - PIT EXIT OPEN/g, "LUZ VERDE — SALIDA DE PITS ABIERTA"], [/PIT EXIT CLOSED/g, "SALIDA DE PITS CERRADA"],
+      [/RED FLAG/g, "BANDERA ROJA"], [/CHEQUERED FLAG/g, "BANDERA A CUADROS"], [/DOUBLE YELLOW IN TRACK SECTOR (\d+)/g, "DOBLE AMARILLA EN SECTOR $1"],
+      [/YELLOW IN TRACK SECTOR (\d+)/g, "AMARILLA EN SECTOR $1"], [/CLEAR IN TRACK SECTOR (\d+)/g, "SECTOR $1 LIBRE"], [/TRACK CLEAR/g, "PISTA LIBRE"],
+      [/VIRTUAL SAFETY CAR DEPLOYED/g, "VIRTUAL SAFETY CAR"], [/VIRTUAL SAFETY CAR ENDING/g, "VSC TERMINANDO"], [/SAFETY CAR DEPLOYED/g, "SAFETY CAR EN PISTA"], [/SAFETY CAR IN THIS LAP/g, "EL SAFETY CAR ENTRA ESTA VUELTA"],
+      [/CAR (\d+) \((\w+)\) TIME ([\d:.]+) DELETED - TRACK LIMITS AT TURN (\d+)/g, "AUTO $1 ($2): TIEMPO $3 BORRADO — LÍMITES DE PISTA EN CURVA $4"],
+      [/CAR (\d+) \((\w+)\) LAP DELETED/g, "AUTO $1 ($2): VUELTA BORRADA"], [/UNDER INVESTIGATION/g, "BAJO INVESTIGACIÓN"], [/NO FURTHER INVESTIGATION/g, "SIN MÁS INVESTIGACIÓN"], [/NO FURTHER ACTION/g, "SIN SANCIÓN"],
+      [/BLUE FLAG FOR CAR (\d+) \((\w+)\)/g, "BANDERA AZUL AUTO $1 ($2)"], [/RISK OF RAIN FOR F1 RACE IS (\d+)%/g, "PROBABILIDAD DE LLUVIA: $1%"], [/DRS ENABLED/g, "DRS HABILITADO"], [/DRS DISABLED/g, "DRS DESHABILITADO"],
+      [/SESSION WILL RESUME AT/g, "LA SESIÓN SE REANUDA A LAS"], [/WILL NOT BE RESUMED/g, "NO SE REANUDARÁ"], [/(\d+) SECOND TIME PENALTY/g, "$1 SEGUNDOS DE PENALIZACIÓN"], [/DRIVE THROUGH PENALTY/g, "DRIVE THROUGH"], [/PENALTY/g, "PENALIZACIÓN"], [/INCIDENT/g, "INCIDENTE"], [/NOTED/g, "ANOTADO"], [/REVIEWED/g, "REVISADO"], [/TURN (\d+)/g, "CURVA $1"], [/CARS /g, "AUTOS "], [/CAR (\d+)/g, "AUTO $1"], [/LAPPED CARS MAY NOW OVERTAKE/g, "LOS DOBLADOS YA PUEDEN REBASAR"], [/STOPPED/g, "DETENIDO"],
+    ];
+    for (const [a, b] of rep) t = t.replace(a, b);
+    return t;
+  }
+  function renderRC() {
+    $("rcl").classList.toggle("hidden", rcMode !== "rc"); $("radl").classList.toggle("hidden", rcMode !== "radio");
+    document.querySelectorAll("#rcseg button").forEach((b) => b.classList.toggle("on", b.dataset.r === rcMode));
+    const rc = S.rc.slice(-100).reverse().map((m) => {
+      const f = (m.flag || "").toUpperCase(), msg = (m.message || "").toUpperCase();
+      const k = f === "RED" ? "red" : /YELLOW/.test(f) ? "yellow" : f === "GREEN" || f === "CLEAR" ? "green" : f === "BLUE" ? "blue" : /PENALTY|INVESTIGATION|DELETED/.test(msg) ? "pen" : "";
+      const t = new Date(m.date).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+      return `<div class="rc ${k}"><b>${esc(es(m.message))}</b><small>${t}${m.lap_number ? " · VUELTA " + m.lap_number : ""}</small></div>`;
+    }).join("");
+    $("rcl").innerHTML = rc || '<div class="empty">Sin mensajes todavía</div>';
+    const playing = $("aud").dataset.src || "";
+    $("radl").innerHTML = S.radios.slice(-60).reverse().map((r) => {
+      const d = S.drivers[r.driver_number] || {};
+      return `<div class="radio"><span class="bar" style="--team:${esc(dcol(r.driver_number))};height:30px"></span><span><b>${esc(dname(d) || "#" + r.driver_number)}</b><small>${esc(d.team_name || "")} · ${new Date(r.date).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</small></span><button class="play${playing === r.recording_url ? " on" : ""}" data-src="${esc(r.recording_url)}">${playing === r.recording_url ? "■" : "▶"}</button></div>`;
+    }).join("") || '<div class="empty">Sin radios todavía (en 2026 la F1 libera pocos)</div>';
+  }
+  function renderChips() {
+    const ns = Object.keys(S.drivers).map(Number).sort((a, b) => (S.pos[a] || 99) - (S.pos[b] || 99));
+    $("chips").innerHTML = ns.map((n) => { const d = S.drivers[n]; return `<span class="chip${n === fav ? " fav" : ""}" data-n="${n}" style="--team:${esc(dcol(n))}"><i></i>${S.pos[n] || "–"} ${esc(d.name_acronym || n)}</span>`; }).join("");
+  }
+
+  // ---------- hoja del piloto ----------
+  let openN = 0;
+  function lapChart(p, ob) {
+    const L = p.laps.filter((l) => l.lap_duration > 0 && !l.is_pit_out_lap && (!p.best || l.lap_duration < p.best * 1.12));
+    if (L.length < 2) return "";
+    const W = 340, H = 130, pad = 34;
+    const v0 = Math.min(...L.map((l) => l.lap_duration)), v1 = Math.max(...L.map((l) => l.lap_duration)) + 0.05;
+    const n0 = L[0].lap_number, n1 = L[L.length - 1].lap_number;
+    const X = (n) => pad + ((n - n0) / Math.max(1, n1 - n0)) * (W - pad - 10), Y = (v) => 10 + ((v - v0) / Math.max(0.1, v1 - v0)) * (H - 30);
+    let g = `<line x1="${pad}" x2="${W - 10}" y1="${Y(v0)}" y2="${Y(v0)}" stroke="#2a1240"/><text x="2" y="${Y(v0) + 4}" fill="#c66cff" font-size="10" font-weight="800">${fmt(v0)}</text><text x="2" y="${Y(v1) + 4}" fill="#7f8da0" font-size="10" font-weight="700">${fmt(v1)}</text>`;
+    g += `<polyline fill="none" stroke="#00d8ff" stroke-width="2" points="${L.map((l) => X(l.lap_number).toFixed(1) + "," + Y(l.lap_duration).toFixed(1)).join(" ")}"/>`;
+    g += L.map((l) => `<circle cx="${X(l.lap_number).toFixed(1)}" cy="${Y(l.lap_duration).toFixed(1)}" r="3" fill="${l.lap_duration <= ob + 1e-6 ? "#c66cff" : l.lap_duration <= p.best + 1e-6 ? "#25e889" : "#00d8ff"}"/>`).join("");
+    g += `<text x="${pad}" y="${H - 4}" fill="#7f8da0" font-size="10" font-weight="700">V${n0}</text><text x="${W - 10}" y="${H - 4}" fill="#7f8da0" font-size="10" font-weight="700" text-anchor="end">V${n1}</text>`;
+    return `<div class="card" style="margin:0 12px 12px"><h2>RITMO <small>TIEMPO POR VUELTA (ARRIBA = MÁS RÁPIDO)</small></h2><div style="padding:8px"><svg class="chart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="height:${H}px;font-family:${CF}">${g}</svg></div></div>`;
+  }
+  function renderSheet(n) {
+    const d = S.drivers[n]; if (!d) return;
+    const st = stats(isQuali() ? lapsScope : "all");
+    const p = st.per[n] || { laps: [], s: [0, 0, 0], best: 0, ideal: 0, st: 0, dels: 0 };
+    const stint = S.stints[n];
+    const last = p.laps[p.laps.length - 1];
+    const segs = last ? [last.segments_sector_1, last.segments_sector_2, last.segments_sector_3] : [];
+    const msAll = segs.flatMap((a, i) => (a || []).map((c) => [c, i]));
+    const msBlock = msAll.length ? `<div class="card" style="margin:0 12px 12px"><h2>MINISECTORES · VUELTA ${last.lap_number}</h2><div class="msbig">${msAll.map(([c]) => `<span class="m${String(c).slice(-2)}"></span>`).join("")}</div><div class="msbig lbl">${[0, 1, 2].map((i) => `<span style="flex:${(segs[i] || []).length || 1}">S${i + 1}</span>`).join("")}</div></div>` : "";
+    const rows = p.laps.slice().reverse().map((l) => {
+      const sv = [l.duration_sector_1, l.duration_sector_2, l.duration_sector_3];
+      const lt = l.lap_duration;
+      const lc = lt && lt <= st.best.lap + 1e-6 ? "ob" : lt && lt <= p.best + 1e-6 ? "pb" : "";
+      return `<tr class="${l.is_pit_out_lap ? "pit" : ""}"><td>${l.lap_number}${l.is_pit_out_lap ? " OUT" : ""}</td><td class="${lc}">${fmt(lt)}</td>${sv.map((v, i) => `<td class="${l.is_pit_out_lap ? "" : secCls(v, p.s[i], st.best.s[i])}">${fs(v)}</td>`).join("")}<td>${l.st_speed || "—"}</td></tr>`;
+    }).join("");
+    const ch = S.champ && S.champ.dr.find((r) => r.driver_number === n);
+    const gap = p.best && st.best.lap ? (p.best - st.best.lap < 0.0005 ? "LA MÁS RÁPIDA" : "+" + (p.best - st.best.lap).toFixed(3)) : "—";
+    $("sheetin").style.setProperty("--team", dcol(n));
+    $("sheetin").innerHTML = `<div class="sh-h"><div><b>${esc(dname(d))}</b><small>#${n} · ${esc(d.team_name || "")}</small></div><button class="star ${n === fav ? "on" : ""}" id="favbtn">${n === fav ? "★ TU PILOTO" : "☆ MARCAR"}</button><button class="x" id="closeb">CERRAR</button></div>
+      <div class="grid4"><div><small>POSICIÓN</small><b>${S.pos[n] || "—"}</b></div><div><small>MEJOR VUELTA</small><b class="${p.best && p.best <= st.best.lap + 1e-6 ? "ob" : ""}">${fmt(p.best)}</b></div>
+      <div><small>VS. LA MÁS RÁPIDA</small><b>${gap}</b></div><div><small>VUELTA IDEAL</small><b>${fmt(p.ideal)}</b></div>
+      <div><small>MEJORES SECTORES</small><b style="font-size:14px">${p.s.map((v, i) => `<span class="${v && v <= st.best.s[i] + 1e-6 ? "ob" : ""}">${fs(v)}</span>`).join(" · ")}</b></div><div><small>VELOCIDAD MÁX.</small><b>${p.st ? p.st + " km/h" : "—"}</b></div>
+      <div><small>LLANTA ACTUAL</small><b>${stint ? esc(stint.compound || "") : "—"}</b></div><div><small>VUELTAS · BORRADOS</small><b>${last ? last.lap_number : 0} · ${p.dels}</b></div>
+      ${ch ? `<div><small>CAMPEONATO</small><b>P${ch.position_current}</b></div><div><small>PUNTOS</small><b>${ch.points_current}</b></div>` : ""}</div>
+      ${msBlock}${lapChart(p, st.best.lap)}
+      <div class="card" style="margin:0 12px"><h2>SUS VUELTAS <small>MÁS RECIENTE ARRIBA</small></h2><table class="lt"><thead><tr><th>V</th><th>TIEMPO</th><th>S1</th><th>S2</th><th>S3</th><th>KM/H</th></tr></thead><tbody>${rows || '<tr><td colspan="6">Sin vueltas</td></tr>'}</tbody></table></div>`;
+    $("favbtn").onclick = () => { fav = fav === n ? 0 : n; store.set("fav", fav ? String(fav) : null); render(); };
+    $("closeb").onclick = closeSheet;
+  }
+  function openSheet(n) { openN = n; renderSheet(n); $("sheet").classList.remove("hidden"); document.body.style.overflow = "hidden"; }
+  function closeSheet() { openN = 0; $("sheet").classList.add("hidden"); document.body.style.overflow = ""; }
+  $("sheet").addEventListener("click", (e) => { if (e.target.id === "sheet") closeSheet(); });
+
+  // ---------- pantalla encendida ----------
+  let wl = null;
+  async function wake() {
+    try { if (opt.wake && navigator.wakeLock && !document.hidden) { if (!wl) { wl = await navigator.wakeLock.request("screen"); wl.addEventListener("release", () => (wl = null)); } } else if (!opt.wake && wl) { await wl.release(); wl = null; } } catch {}
+  }
+
+  // ---------- bucles ----------
+  function tickClock() { if (!S) return; const c = clock(); $("clab").textContent = c.lab; $("clock").textContent = c.txt; }
+  let timer = null, busy = false, fails = 0;
+  async function loop() {
+    clearTimeout(timer);
+    if (document.hidden) { timer = setTimeout(loop, 2000); return; }
+    if (!busy) {
+      busy = true;
+      try { if (!S) await boot(); else await poll(false); fails = 0; }
+      catch (e) {
+        fails++;
+        if (e.message === "auth") { showLogin("OpenF1 rechazó la cuenta. Revisa usuario y contraseña."); busy = false; return; }
+        setStatus(e instanceof TypeError ? "SIN CONEXIÓN · REINTENTANDO" : "ERROR · " + e.message, "err");
+      }
+      busy = false;
+    }
+    timer = setTimeout(loop, Math.min(30, rate * (fails ? 2 : 1)) * 1000);
+  }
+  setInterval(() => { tickClock(); if (S && S.lastOk && Date.now() - S.lastOk > rate * 3000 + 10000) setStatus("SEÑAL LENTA", "warn"); }, 1000);
+  setInterval(() => { if (S && view === "info") renderInfo(); }, 15000);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden && cred.u) { loop(); pollGPS(); wake(); } });
+
+  // ---------- vistas ----------
+  const VIEWS = ["tower", "map", "laps", "champ", "info", "rc", "set"];
+  function show(v) {
+    view = v;
+    for (const x of VIEWS) $("v-" + x).classList.toggle("hidden", x !== v);
+    document.querySelectorAll("#tabs button").forEach((b) => b.classList.toggle("on", b.dataset.v === v));
+    window.scrollTo(0, 0);
+    if (v === "map") pollGPS();
+    if (S && v === "info") renderInfo();
+  }
+  function showLogin(msg) {
+    $("v-login").classList.remove("hidden");
+    for (const x of VIEWS) $("v-" + x).classList.add("hidden");
+    $("tabs").classList.add("hidden");
+    $("lerr").textContent = msg || ""; $("u").value = cred.u;
+    setStatus("SIN CUENTA", "err");
+  }
+  $("tabs").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) show(b.dataset.v); });
+  $("gear").addEventListener("click", () => { if (cred.u) show(view === "set" ? "tower" : "set"); });
+  $("fsb").addEventListener("click", async () => {
+    const d = document, el = d.documentElement;
+    try {
+      if (d.fullscreenElement || d.webkitFullscreenElement) { await (d.exitFullscreen || d.webkitExitFullscreen).call(d); return; }
+      const req = el.requestFullscreen || el.webkitRequestFullscreen;
+      if (!req) throw 0;
+      await req.call(el, { navigationUI: "hide" });
+    } catch { showAlert("iPhone no deja pantalla completa desde aquí: ábrela en Safari, toca aA → Ocultar barra de herramientas, o gira el celular", "me"); }
+  });
+  $("dens").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; dens = b.dataset.d; store.set("dens", dens); if (S) renderTower(); });
+  $("rcseg").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; rcMode = b.dataset.r; if (S) renderRC(); });
+  $("radl").addEventListener("click", (e) => {
+    const b = e.target.closest(".play"); if (!b) return;
+    const a = $("aud");
+    if (a.dataset.src === b.dataset.src && !a.paused) { a.pause(); a.dataset.src = ""; }
+    else { a.src = b.dataset.src; a.dataset.src = b.dataset.src; a.play().catch(() => {}); }
+    renderRC();
+  });
+  $("aud").addEventListener("ended", () => { $("aud").dataset.src = ""; if (S) renderRC(); });
+  const tapDriver = (e) => { const r = e.target.closest("[data-n]"); if (r && S.drivers[r.dataset.n]) openSheet(+r.dataset.n); };
+  $("rows").addEventListener("click", tapDriver);
+  $("chips").addEventListener("click", tapDriver);
+  $("champv").addEventListener("click", tapDriver);
+  $("lapsv").addEventListener("click", (e) => { const b = e.target.closest("[data-sc]"); if (b) { lapsScope = b.dataset.sc; renderLaps(); return; } tapDriver(e); });
+  $("go").addEventListener("click", async () => {
+    cred = { u: $("u").value.trim(), p: $("pw").value };
+    if (!cred.u || !cred.p) { $("lerr").textContent = "Escribe usuario y contraseña."; return; }
+    $("go").textContent = "PROBANDO…"; token = null;
+    try {
+      await getToken();
+      store.set("u", cred.u); store.set("p", cred.p);
+      $("v-login").classList.add("hidden"); $("tabs").classList.remove("hidden"); $("pw").value = "";
+      paintOpts(); show("tower"); loop();
+    } catch (e) {
+      $("lerr").textContent = e.message === "auth" ? "OpenF1 rechazó la cuenta. Revisa usuario y contraseña." : e instanceof TypeError ? "No se pudo conectar con OpenF1 desde esta página. Revisa tu internet; si sigue, avísame." : "Error: " + e.message;
+    }
+    $("go").textContent = "ENTRAR";
+  });
+  $("logout").addEventListener("click", () => { store.set("u", null); store.set("p", null); cred = { u: "", p: "" }; token = null; S = null; showLogin(""); });
+  $("rate").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; rate = +b.dataset.r; store.set("rate", String(rate)); paintOpts(); });
+  for (const k of ["alert", "vib", "me", "wake"]) $("o-" + k).addEventListener("change", (e) => { opt[k] = e.target.checked; store.set("o-" + k, e.target.checked ? "1" : "0"); if (k === "wake") wake(); });
+  function paintOpts() {
+    document.querySelectorAll("#rate button").forEach((b) => b.classList.toggle("on", +b.dataset.r === rate));
+    for (const k of ["alert", "vib", "me", "wake"]) $("o-" + k).checked = opt[k];
+    $("acct").textContent = cred.u ? "Cuenta: " + cred.u : "—";
+  }
+  paintOpts();
+  wake();
+
+  if (cred.u && cred.p) { $("tabs").classList.remove("hidden"); show("tower"); loop(); } else showLogin("");
+})();
+</script>
+</body>
+</html>
