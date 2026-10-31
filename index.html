@@ -863,7 +863,7 @@ button,input{font:inherit;color:inherit}
     const race = isRace(), quali = isQuali();
     $("towerbox").className = dens === "compact" ? "compact" : "";
     document.querySelectorAll("#dens button").forEach((b) => b.classList.toggle("on", b.dataset.d === dens));
-    $("hd").innerHTML = race ? "<span>P</span><span></span><span>PILOTO</span><span>INTERV.</span><span>LÍDER</span><span>N</span>" : "<span>P</span><span></span><span>PILOTO</span><span>MEJOR</span><span>DIF.</span><span>N</span>";
+    $("hd").innerHTML = race ? "<span>P</span><span></span><span>PILOTO</span><span>INTERV.</span><span>LÍDER</span><span>N</span>" : "<span>P</span><span></span><span>PILOTO</span><span>MEJOR<br>ÚLTIMA</span><span>VS P1<br>↑ ADELANTE</span><span>N</span>";
     const { out, st } = buildRows();
     const ob = st.best.lap, N = out.length;
     const ph = quali ? qPhase().ph : 0;
