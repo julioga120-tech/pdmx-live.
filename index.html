@@ -246,8 +246,8 @@ button,input{font:inherit;color:inherit}
 
   <section id="v-set" class="pad hidden">
     <div class="card"><h2>ACTUALIZAR TIEMPOS CADA</h2>
-      <div class="opt" id="rate" style="padding-top:12px"><button data-r="4">4 s</button><button data-r="8">8 s</button><button data-r="15">15 s</button></div>
-      <div class="txt" style="padding-top:0">Más segundos = menos datos. El mapa (GPS) solo baja datos mientras estás en MAPA.</div></div>
+      <div class="opt" id="rate" style="padding-top:12px"><button data-r="6">6 s</button><button data-r="8">8 s</button><button data-r="15">15 s</button></div>
+      <div class="txt" style="padding-top:0">Más segundos = menos datos. OpenF1 permite 60 consultas por minuto por cuenta; la página usa máximo 48 y se acomoda sola. Si tienes abierto el programa de la PC con la misma cuenta, usa 15 s. El mapa (GPS) solo consulta mientras estás en MAPA.</div></div>
     <div class="card"><h2>AVISOS Y PANTALLA</h2>
       <label class="tg"><span>Avisos de bandera<small>Roja, SC, VSC, amarilla doble y cuadros: aviso grande arriba</small></span><input type="checkbox" id="o-alert"></label>
       <label class="tg"><span>Vibrar con los avisos<small>Solo Android</small></span><input type="checkbox" id="o-vib"></label>
@@ -290,7 +290,7 @@ button,input{font:inherit;color:inherit}
 
   let cred = { u: store.get("u") || "", p: store.get("p") || "" };
   let token = null, tokenExp = 0;
-  let rate = +(store.get("rate") || 8);
+  let rate = Math.max(6, +(store.get("rate") || 8));
   let fav = +(store.get("fav") || 0);
   let dens = store.get("dens") || "full";
   const opt = { alert: store.get("o-alert") !== "0", vib: store.get("o-vib") !== "0", me: store.get("o-me") !== "0", wake: store.get("o-wake") === "1" };
@@ -310,8 +310,23 @@ button,input{font:inherit;color:inherit}
   }
   // Cola: máximo ~4 peticiones por segundo (OpenF1 corta si te pasas y en señal mala
   // conviene no saturar). Cada petición tiene límite de 15 s y un reintento.
-  let nextSlot = 0;
-  async function slot() { const now = Date.now(), t = Math.max(now, nextSlot); nextSlot = t + 250; if (t > now) await new Promise((ok) => setTimeout(ok, t - now)); }
+  // Límites de OpenF1 (cuenta patrocinador): 6 por segundo y 60 por minuto, por cuenta.
+  // Usamos 4/s y 48/min para dejar margen (por si el programa de la PC también está abierto).
+  let nextSlot = 0, backoff = 0;
+  const win = [];
+  const PER_MIN = 48;
+  async function slot() {
+    for (;;) {
+      const now = Date.now();
+      while (win.length && now - win[0] > 60000) win.shift();
+      let t = Math.max(now, nextSlot, backoff);
+      if (win.length >= PER_MIN) t = Math.max(t, win[0] + 60000 + 50);
+      if (t <= now) break;
+      await new Promise((ok) => setTimeout(ok, t - now));
+    }
+    const now = Date.now(); win.push(now); nextSlot = now + 250;
+  }
+  window.__of1 = () => ({ ultimoMinuto: win.length, limite: PER_MIN });
   async function get1(path) {
     await slot();
     const ac = new AbortController(), to = setTimeout(() => ac.abort(), 15000);
@@ -323,7 +338,7 @@ button,input{font:inherit;color:inherit}
     try { r = await get1(path); } catch { await new Promise((ok) => setTimeout(ok, 1200)); r = await get1(path).catch(() => { throw new TypeError("red"); }); }
     if (r.status === 401) { token = null; r = await get1(path); }
     if (r.status === 404 || r.status === 422) return [];
-    if (r.status === 429) { await new Promise((ok) => setTimeout(ok, 1500)); return []; }
+    if (r.status === 429) { backoff = Date.now() + 5000; return []; }
     if (!r.ok) throw new Error("HTTP " + r.status);
     const j = await r.json();
     return Array.isArray(j) ? j : [];
@@ -366,7 +381,7 @@ button,input{font:inherit;color:inherit}
 
   async function poll(first) {
     const race = isRace();
-    const slow = first || !S.cur.stAt || Date.now() - S.cur.stAt > 30000;
+    const slow = first || !S.cur.stAt || Date.now() - S.cur.stAt > 45000;
     const jobs = [
       q("position?" + K() + gt("date", S.cur.pos)).then((a) => { for (const p of a) { S.pos[p.driver_number] = p.position; if (!S.cur.pos || p.date > S.cur.pos) S.cur.pos = p.date; } }),
       q("laps?" + K() + gt("date_start", S.cur.laps)).then((a) => {
@@ -486,7 +501,7 @@ button,input{font:inherit;color:inherit}
       } catch {}
       gpsBusy = false;
     }
-    gpsTimer = setTimeout(pollGPS, 2500);
+    gpsTimer = setTimeout(pollGPS, win.length > 36 ? 6000 : 4000);
   }
   function posAt(arr, t) {
     if (!arr || !arr.length) return null;
@@ -526,7 +541,7 @@ button,input{font:inherit;color:inherit}
       cx.beginPath(); for (let i = a; i <= b && i < T.P.length; i++) (i === a ? cx.moveTo(X(T.P[i]), Y(T.P[i])) : cx.lineTo(X(T.P[i]), Y(T.P[i]))); cx.strokeStyle = "#ffd400"; cx.lineWidth = 6; cx.stroke();
     }
     cx.fillStyle = "#fff"; cx.fillRect(X(T.start) - 6, Y(T.start) - 1.5, 12, 3);
-    const target = Date.now() - Math.min(20000, Math.max(3500, (lagEMA || 3000) + 2500));
+    const target = Date.now() - Math.min(20000, Math.max(5000, (lagEMA || 3000) + 4500));
     const dt = lastFrame ? now - lastFrame : 0; lastFrame = now;
     if (!playT || Math.abs(target - playT) > 15000) playT = target; else playT += dt * (1 + Math.max(-0.25, Math.min(0.25, (target - playT) / 8000)));
     const order = Object.keys(S.drivers).map(Number).sort((a, b) => (S.pos[b] || 99) - (S.pos[a] || 99));
