@@ -277,6 +277,7 @@ button,input{font:inherit;color:inherit}
 <div id="alertbox"></div>
 <audio id="aud" preload="none"></audio>
 
+<script src="mqtt.min.js"></script>
 <script>
 (() => {
   const API = "https://api.openf1.org";
@@ -350,6 +351,91 @@ button,input{font:inherit;color:inherit}
   const soft = (p) => p.catch(() => {});
 
   // ---------- carga ----------
+  // Respaldo de la parrilla 2026 por si OpenF1 no deja bajar la lista en vivo.
+  const GRID = [[1,"NOR","Norris","McLaren","FF8000"],[81,"PIA","Piastri","McLaren","FF8000"],[3,"VER","Verstappen","Red Bull Racing","3671C6"],[6,"HAD","Hadjar","Red Bull Racing","3671C6"],[16,"LEC","Leclerc","Ferrari","E8002D"],[44,"HAM","Hamilton","Ferrari","E8002D"],[63,"RUS","Russell","Mercedes","27F4D2"],[12,"ANT","Antonelli","Mercedes","27F4D2"],[11,"PER","Perez","Cadillac","AAAAAA"],[77,"BOT","Bottas","Cadillac","AAAAAA"],[14,"ALO","Alonso","Aston Martin","229971"],[18,"STR","Stroll","Aston Martin","229971"],[10,"GAS","Gasly","Alpine","0093CC"],[43,"COL","Colapinto","Alpine","0093CC"],[23,"ALB","Albon","Williams","64C4FF"],[55,"SAI","Sainz","Williams","64C4FF"],[27,"HUL","Hulkenberg","Audi","00E701"],[5,"BOR","Bortoleto","Audi","00E701"],[31,"OCO","Ocon","Haas F1 Team","B6BABD"],[87,"BEA","Bearman","Haas F1 Team","B6BABD"],[30,"LAW","Lawson","Racing Bulls","6692FF"],[41,"LIN","Lindblad","Racing Bulls","6692FF"]];
+  function cacheSet(k, v) { try { localStorage.setItem("pdmx_c_" + k, JSON.stringify(v)); } catch {} }
+  function cacheGet(k) { try { return JSON.parse(localStorage.getItem("pdmx_c_" + k) || "null"); } catch { return null; } }
+  function saveState() {
+    if (!S || !S.sess || !S.sess.session_key) return;
+    cacheSet("state", { key: S.sess.session_key, at: Date.now(), pos: S.pos, laps: S.laps, rc: S.rc, stints: S.stints, stintAll: S.stintAll, pits: S.pits, wxAll: S.wxAll.slice(-200), radios: S.radios.slice(-60), intv: S.intv });
+  }
+  function loadState() {
+    const c = cacheGet("state");
+    if (!c || c.key !== S.sess.session_key || Date.now() - c.at > 4 * 3600000) return;
+    Object.assign(S, { pos: c.pos || {}, laps: c.laps || {}, rc: c.rc || [], stints: c.stints || {}, stintAll: c.stintAll || {}, pits: c.pits || {}, wxAll: c.wxAll || [], radios: c.radios || [], intv: c.intv || {} });
+    if (S.wxAll.length) S.wx = S.wxAll[S.wxAll.length - 1];
+  }
+  setInterval(saveState, 20000);
+
+  // ---------- modo MQTT (WebSocket) ----------
+  // En sesión en vivo OpenF1 bloquea el REST desde el navegador; su vía oficial
+  // para navegadores es MQTT por WebSocket con la cuenta. Llega todo al instante.
+  let mq = null, mqTopics = new Set(), renderT = 0;
+  function softRender() { if (renderT) return; renderT = setTimeout(() => { renderT = 0; render(); }, 700); }
+  function ingest(topic, r) {
+    const n = r.driver_number;
+    if (r.session_key && S.sess.session_key && r.session_key !== S.sess.session_key) {
+      if (!S.sess.synthetic) return;
+      S.sess.session_key = r.session_key; loadState();
+    }
+    if (r.session_key && !S.sess.session_key) { S.sess.session_key = r.session_key; loadState(); }
+    switch (topic) {
+      case "position": S.pos[n] = r.position; break;
+      case "intervals": S.intv[n] = r; break;
+      case "laps": {
+        const m = (S.laps[n] ||= {}); const before = snapBests();
+        m[r.lap_number] = Object.assign(m[r.lap_number] || {}, r);
+        if (r.lap_duration) meAlert(before);
+        break;
+      }
+      case "race_control": if (!S.rc.some((m) => m.date === r.date && m.message === r.message)) { S.rc.push(r); S.rc.sort((x, y) => (x.date < y.date ? -1 : 1)); flagAlert(r); } break;
+      case "stints": { const a = (S.stintAll[n] ||= []); const i = a.findIndex((x) => x.stint_number === r.stint_number); if (i >= 0) a[i] = Object.assign(a[i], r); else a.push(r); a.sort((x, y) => x.stint_number - y.stint_number); S.stints[n] = a[a.length - 1]; break; }
+      case "pit": { const a = (S.pits[n] ||= []); if (!a.some((x) => x.lap_number === r.lap_number)) a.push(r); break; }
+      case "weather": S.wxAll.push(r); S.wx = r; break;
+      case "team_radio": S.radios.push(r); break;
+      case "drivers": S.drivers[n] = Object.assign(S.drivers[n] || {}, r); break;
+      case "sessions": if (r.session_key) { const keep = S.sess.synthetic; S.sess = Object.assign({}, S.sess, r); if (keep) delete S.sess.synthetic; renderHead(); } break;
+      case "location": {
+        if (!r.x && !r.y) break;
+        const t = new Date(r.date).getTime();
+        const arr = (S.loc[n] ||= []); arr.push([t, r.x, r.y]);
+        if (t > newestLoc) newestLoc = t;
+        if (arr.length > 300) arr.splice(0, arr.length - 200);
+        lagEMA = Math.max(1500, Date.now() - newestLoc);
+        return;
+      }
+      default: return;
+    }
+    S.lastOk = Date.now();
+    softRender();
+  }
+  function mqSub() {
+    if (!mq) return;
+    const want = ["position", "intervals", "laps", "race_control", "stints", "pit", "weather", "team_radio", "drivers", "sessions"];
+    if (view === "map") want.push("location");
+    for (const t of want) if (!mqTopics.has(t)) { mq.subscribe("v1/" + t); mqTopics.add(t); }
+    for (const t of [...mqTopics]) if (!want.includes(t)) { mq.unsubscribe("v1/" + t); mqTopics.delete(t); }
+  }
+  async function startMQTT(sessGuess) {
+    if (mq || !window.mqtt) return !!mq;
+    const tok = await getToken();
+    if (!S) {
+      S = fresh(sessGuess || cacheGet("sess") || { session_key: 0, session_name: "Sesión en vivo", session_type: "", date_start: new Date().toISOString(), date_end: new Date(Date.now() + 2 * 3600000).toISOString(), synthetic: true });
+      const dc = cacheGet("drivers");
+      if (dc && Object.keys(dc).length) S.drivers = dc; else for (const g of GRID) S.drivers[g[0]] = { driver_number: g[0], name_acronym: g[1], last_name: g[2], team_name: g[3], team_colour: g[4] };
+      const yc = cacheGet("year"); if (yc) S.year = yc;
+      const ch = cacheGet("champ"); if (ch) S.champ = ch;
+      loadState(); loadTrackCache(); renderHead(); render();
+    }
+    S.mode = "mqtt";
+    mq = mqtt.connect("wss://mqtt.openf1.org:8084/mqtt", { username: cred.u, password: tok, clean: true, reconnectPeriod: 3000, connectTimeout: 15000, keepalive: 30 });
+    mq.on("connect", () => { mqTopics.clear(); mqSub(); setStatus("EN VIVO · MQTT", "ok"); $("dbg").textContent = ""; });
+    mq.on("reconnect", async () => { try { mq.options.password = await getToken(); } catch {} setStatus("RECONECTANDO…", "warn"); });
+    mq.on("error", (e) => { $("dbg").textContent = "MQTT: " + ((e && e.message) || e); if (/auth|Not authorized|Bad user/i.test(String(e && e.message))) { token = null; } });
+    mq.on("message", (topic, buf) => { try { const r = JSON.parse(new TextDecoder().decode(buf)); ingest(topic.replace(/^v1\//, ""), r); } catch {} });
+    return true;
+  }
+
   async function boot() {
     setStatus("CONECTANDO…", "warn");
     const now = Date.now();
@@ -361,12 +447,14 @@ button,input{font:inherit;color:inherit}
     if (!pick) throw new Error("Sin sesiones");
     S = fresh(pick);
     S.year = list;
+    cacheSet("sess", pick);
     await loadDrivers();
+    if (Object.keys(S.drivers).length) cacheSet("drivers", S.drivers);
     renderHead();
     S.lastOk = Date.now(); render();
     loadTrackCache();
     if (isRace()) soft(q("starting_grid?" + K()).then((a) => { for (const g of a) S.grid[g.driver_number] = g.position; }));
-    soft(q("sessions?year=" + new Date().getUTCFullYear()).then((a) => { if (a.length) S.year = a.filter((s) => !s.is_cancelled).sort((x, y) => new Date(x.date_start) - new Date(y.date_start)); }).then(loadChamp));
+    soft(q("sessions?year=" + new Date().getUTCFullYear()).then((a) => { if (a.length) { S.year = a.filter((s) => !s.is_cancelled).sort((x, y) => new Date(x.date_start) - new Date(y.date_start)); cacheSet("year", S.year); } }).then(loadChamp).then(() => S.champ && cacheSet("champ", S.champ)));
     await poll(true);
   }
 
@@ -580,7 +668,7 @@ button,input{font:inherit;color:inherit}
   });
 
   // ---------- lógica de sesión ----------
-  const typ = () => (S?.sess.session_type || "").toLowerCase();
+  const typ = () => { const t = (S?.sess.session_type || "").toLowerCase(); if (t || !S) return t; return S.rc.some((m) => m.qualifying_phase) ? "qualifying" : ""; };
   const isRace = () => typ() === "race";
   const isQuali = () => typ() === "qualifying";
   const isSprint = () => /sprint/i.test(S?.sess.session_name || "") && isRace();
@@ -717,14 +805,15 @@ button,input{font:inherit;color:inherit}
   const sName = (s) => (NAMES[s.session_name] || s.session_name || "").toUpperCase();
   function renderHead() {
     const s = S.sess;
-    $("sname").textContent = sName(s);
-    $("ssub").textContent = `${(s.location || s.circuit_short_name || "").toUpperCase()} · ${s.year}`;
+    $("sname").textContent = s.synthetic ? (isQuali() ? "CLASIFICACIÓN" : "SESIÓN EN VIVO") : sName(s);
+    $("ssub").textContent = s.synthetic ? "EN VIVO · DATOS DESDE QUE ABRISTE LA PÁGINA" : `${(s.location || s.circuit_short_name || "").toUpperCase()} · ${s.year || ""}`;
   }
   const dname = (d) => (d ? d.last_name || d.broadcast_name || d.name_acronym || "" : "").toUpperCase();
   const dcol = (n) => "#" + ((S.drivers[n] || {}).team_colour || "888");
 
   function render() {
     if (!S) return;
+    renderHead();
     const ts = trackState();
     $("flag").className = "flag " + (ts.st === "green" ? "" : ts.st); $("flag").textContent = ts.txt;
     tickClock();
@@ -738,7 +827,7 @@ button,input{font:inherit;color:inherit}
     }
     if (openN) try { renderSheet(openN); } catch (e) { errs.push("ficha: " + e.message); }
     $("dbg").textContent = errs.length ? "Aviso técnico (mándame captura): " + errs.join(" | ") : "";
-    if (S.lastOk && Date.now() - S.lastOk < rate * 3000 + 10000) setStatus("EN VIVO", "ok");
+    if (S.lastOk && Date.now() - S.lastOk < rate * 3000 + 10000) setStatus(S.mode === "mqtt" ? "EN VIVO · MQTT" : "EN VIVO", "ok");
   }
 
   function renderTower() {
@@ -1060,10 +1149,18 @@ button,input{font:inherit;color:inherit}
     if (document.hidden) { timer = setTimeout(loop, 2000); return; }
     if (!busy) {
       busy = true;
-      try { if (!S) await boot(); else await poll(false); fails = 0; }
+      try {
+        if (S && S.mode === "mqtt") { busy = false; timer = setTimeout(loop, 60000); return; }
+        if (!S) await boot(); else await poll(false); fails = 0;
+      }
       catch (e) {
         fails++;
         if (e.message === "auth") { showLogin("OpenF1 rechazó la cuenta. Revisa usuario y contraseña."); busy = false; return; }
+        if (e.net && cred.u && window.mqtt && !(e.detail || "").startsWith("token")) {
+          const guess = S ? S.sess : null;
+          if (S && !S.mode) { /* ya teníamos datos por REST: seguimos con ellos y vivo por MQTT */ }
+          try { await startMQTT(guess); busy = false; timer = setTimeout(loop, 60000); return; } catch (e2) { $("dbg").textContent = "MQTT: " + (e2.message || e2); }
+        }
         setStatus(e.net ? "SEÑAL DÉBIL · REINTENTANDO" : "ERROR · " + e.message, "err");
         $("dbg").textContent = e.net ? "Sin respuesta de OpenF1 (" + (e.detail || "red") + "). Reintentando…" : "Error: " + (e.message || e);
       }
@@ -1071,7 +1168,7 @@ button,input{font:inherit;color:inherit}
     }
     timer = setTimeout(loop, Math.min(30, rate * (fails ? 2 : 1)) * 1000);
   }
-  setInterval(() => { tickClock(); if (S && S.lastOk && Date.now() - S.lastOk > rate * 3000 + 10000) setStatus("SEÑAL LENTA", "warn"); }, 1000);
+  setInterval(() => { tickClock(); if (S && S.lastOk && Date.now() - S.lastOk > (S.mode === "mqtt" ? 90000 : rate * 3000 + 10000)) setStatus("SEÑAL LENTA", "warn"); }, 1000);
   setInterval(() => { if (S && view === "info") renderInfo(); }, 15000);
   document.addEventListener("visibilitychange", () => { if (!document.hidden && cred.u) { loop(); pollGPS(); wake(); } });
 
@@ -1082,7 +1179,7 @@ button,input{font:inherit;color:inherit}
     for (const x of VIEWS) $("v-" + x).classList.toggle("hidden", x !== v);
     document.querySelectorAll("#tabs button").forEach((b) => b.classList.toggle("on", b.dataset.v === v));
     window.scrollTo(0, 0);
-    if (v === "map") pollGPS();
+    if (S && S.mode === "mqtt") mqSub(); else if (v === "map") pollGPS();
     if (S && v === "info") renderInfo();
   }
   function showLogin(msg) {
