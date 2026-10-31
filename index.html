@@ -226,6 +226,7 @@ button,input{font:inherit;color:inherit}
 
   <section id="v-tower" class="hidden">
     <div class="tbar"><div class="seg" id="dens"><button data-d="full">DETALLE (SECTORES)</button><button data-d="compact">LOS 22 EN PANTALLA</button></div></div>
+    <div id="dbg" style="padding:4px 12px;font-size:11px;color:#ff8a9b;font-weight:700"></div>
     <div id="towerbox"><div class="hd" id="hd"></div><div id="rows"><div class="empty">Cargando…</div></div></div>
   </section>
 
@@ -302,7 +303,7 @@ button,input{font:inherit;color:inherit}
   // ---------- red ----------
   async function getToken() {
     if (token && Date.now() < tokenExp - 120000) return token;
-    const r = await fetch(API + "/token", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: "username=" + encodeURIComponent(cred.u) + "&password=" + encodeURIComponent(cred.p) });
+    const r = await fetch(API + "/token", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: "username=" + encodeURIComponent(cred.u) + "&password=" + encodeURIComponent(cred.p) }).catch((e) => { const er = new Error("red"); er.net = true; er.detail = "token: " + ((e && e.message) || e); throw er; });
     if (!r.ok) throw new Error(r.status === 401 || r.status === 400 ? "auth" : "token " + r.status);
     const j = await r.json();
     token = j.access_token; tokenExp = Date.now() + (+j.expires_in || 3600) * 1000;
@@ -331,11 +332,12 @@ button,input{font:inherit;color:inherit}
     await slot();
     const ac = new AbortController(), to = setTimeout(() => ac.abort(), 15000);
     try { return await fetch(API + "/v1/" + path, { headers: { Authorization: "Bearer " + (await getToken()) }, signal: ac.signal }); }
+    catch (e) { const er = new Error("red"); er.net = true; er.detail = (e && e.message) || String(e); throw er; }
     finally { clearTimeout(to); }
   }
   async function q(path) {
     let r;
-    try { r = await get1(path); } catch { await new Promise((ok) => setTimeout(ok, 1200)); r = await get1(path).catch(() => { throw new TypeError("red"); }); }
+    try { r = await get1(path); } catch { await new Promise((ok) => setTimeout(ok, 1200)); r = await get1(path); }
     if (r.status === 401) { token = null; r = await get1(path); }
     if (r.status === 404 || r.status === 422) return [];
     if (r.status === 429) { backoff = Date.now() + 5000; return []; }
@@ -359,14 +361,20 @@ button,input{font:inherit;color:inherit}
     if (!pick) throw new Error("Sin sesiones");
     S = fresh(pick);
     S.year = list;
-    for (const d of await q("drivers?" + K())) S.drivers[d.driver_number] = d;
+    await loadDrivers();
     renderHead();
+    S.lastOk = Date.now(); render();
     loadTrackCache();
     if (isRace()) soft(q("starting_grid?" + K()).then((a) => { for (const g of a) S.grid[g.driver_number] = g.position; }));
     soft(q("sessions?year=" + new Date().getUTCFullYear()).then((a) => { if (a.length) S.year = a.filter((s) => !s.is_cancelled).sort((x, y) => new Date(x.date_start) - new Date(y.date_start)); }).then(loadChamp));
     await poll(true);
   }
 
+  async function loadDrivers() {
+    let a = await q("drivers?" + K());
+    if (!a.length && S.sess.meeting_key) a = await q("drivers?meeting_key=" + S.sess.meeting_key);
+    for (const d of a) { const c = S.drivers[d.driver_number]; if (!c || (d.session_key || 0) >= (c.session_key || 0)) S.drivers[d.driver_number] = d; }
+  }
   async function loadChamp() {
     // campeonato tras la última carrera o sprint terminada
     const now = Date.now();
@@ -411,6 +419,7 @@ button,input{font:inherit;color:inherit}
       jobs.push(q("weather?" + K() + gt("date", S.cur.wx)).then((a) => { for (const w of a) { S.wxAll.push(w); if (!S.cur.wx || w.date > S.cur.wx) S.cur.wx = w.date; } if (S.wxAll.length) S.wx = S.wxAll[S.wxAll.length - 1]; }));
       jobs.push(soft(q("team_radio?" + K() + gt("date", S.cur.rad)).then((a) => { for (const r of a) { S.radios.push(r); if (!S.cur.rad || r.date > S.cur.rad) S.cur.rad = r.date; } })));
     }
+    if (!Object.keys(S.drivers).length || (slow && Object.keys(S.drivers).length < Object.keys(S.pos).length)) jobs.push(loadDrivers());
     const before = snapBests();
     const res = await Promise.allSettled(jobs);
     if (res.every((x) => x.status === "rejected")) throw res[0].reason;
@@ -723,8 +732,12 @@ button,input{font:inherit;color:inherit}
     const om = isRace() ? overtakeMode() : null;
     if (om != null) $("flag").textContent = ts.txt + (om ? " · OVERTAKE MODE ✓" : " · OVERTAKE MODE ✗");
     $("wx").innerHTML = w ? `<span>AIRE <b>${Math.round(w.air_temperature)}°</b> · PISTA <b>${Math.round(w.track_temperature)}°</b></span><span>${w.rainfall ? '<b style="color:var(--cyan)">LLUVIA</b>' : "SIN LLUVIA"} · VIENTO <b>${Math.round((w.wind_speed || 0) * 3.6)}</b> km/h</span>` : "";
-    renderTower(); renderLaps(); renderRC(); renderChips(); renderInfo(); renderChamp();
-    if (openN) renderSheet(openN);
+    const errs = [];
+    for (const [nm, f] of [["torre", renderTower], ["vueltas", renderLaps], ["rc", renderRC], ["chips", renderChips], ["clima", renderInfo], ["mundial", renderChamp]]) {
+      try { f(); } catch (e) { errs.push(nm + ": " + (e && e.message)); }
+    }
+    if (openN) try { renderSheet(openN); } catch (e) { errs.push("ficha: " + e.message); }
+    $("dbg").textContent = errs.length ? "Aviso técnico (mándame captura): " + errs.join(" | ") : "";
     if (S.lastOk && Date.now() - S.lastOk < rate * 3000 + 10000) setStatus("EN VIVO", "ok");
   }
 
@@ -1051,7 +1064,8 @@ button,input{font:inherit;color:inherit}
       catch (e) {
         fails++;
         if (e.message === "auth") { showLogin("OpenF1 rechazó la cuenta. Revisa usuario y contraseña."); busy = false; return; }
-        setStatus(e instanceof TypeError || e.name === "AbortError" ? "SEÑAL DÉBIL · REINTENTANDO" : "ERROR · " + e.message, "err");
+        setStatus(e.net ? "SEÑAL DÉBIL · REINTENTANDO" : "ERROR · " + e.message, "err");
+        $("dbg").textContent = e.net ? "Sin respuesta de OpenF1 (" + (e.detail || "red") + "). Reintentando…" : "Error: " + (e.message || e);
       }
       busy = false;
     }
@@ -1114,7 +1128,7 @@ button,input{font:inherit;color:inherit}
       $("v-login").classList.add("hidden"); $("tabs").classList.remove("hidden"); $("pw").value = "";
       paintOpts(); show("tower"); loop();
     } catch (e) {
-      $("lerr").textContent = e.message === "auth" ? "OpenF1 rechazó la cuenta. Revisa usuario y contraseña." : e instanceof TypeError ? "No se pudo conectar con OpenF1 desde esta página. Revisa tu internet; si sigue, avísame." : "Error: " + e.message;
+      $("lerr").textContent = e.message === "auth" ? "OpenF1 rechazó la cuenta. Revisa usuario y contraseña." : e.net || e instanceof TypeError ? "No se pudo conectar con OpenF1 desde esta página. Revisa tu internet; si sigue, avísame." : "Error: " + e.message;
     }
     $("go").textContent = "ENTRAR";
   });
