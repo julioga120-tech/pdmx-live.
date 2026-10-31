@@ -436,6 +436,22 @@ button,input{font:inherit;color:inherit}
     return true;
   }
 
+  async function backfill() {
+    if (!S || !S.sess) return;
+    let key = S.sess.session_key;
+    if (S.sess.synthetic || !key) {
+      const ss = await q("sessions?session_key=latest");
+      if (!ss.length) return;
+      const keepMode = S.mode; S.sess = ss[0]; S.mode = keepMode; key = ss[0].session_key; cacheSet("sess", ss[0]);
+    }
+    const saved = { pos: S.cur.pos, laps: S.cur.laps, rc: S.cur.rc };
+    S.cur.pos = S.cur.laps = S.cur.rc = undefined; // todo desde el inicio
+    await poll(true);
+    if (!Object.keys(S.drivers).length || S.drivers[Object.keys(S.drivers)[0]].session_key === undefined) { try { await loadDrivers(); cacheSet("drivers", S.drivers); } catch {} }
+    $("dbg").textContent = "";
+    void saved;
+  }
+
   async function boot() {
     setStatus("CONECTANDO…", "warn");
     const now = Date.now();
@@ -795,7 +811,20 @@ button,input{font:inherit;color:inherit}
       const nLaps = last ? last.lap_number : 0;
       out.push({ n: +n, d: S.drivers[n], pos: S.pos[n] || 99, p, show, lastDone, nLaps, tyre: stint ? (stint.compound || "")[0] : "", age: stint ? (stint.tyre_age_at_start || 0) + Math.max(0, nLaps - stint.lap_start) : 0, intv: S.intv[n], stops: pits.length, tag, grid: S.grid[n] });
     }
-    out.sort((a, b) => a.pos - b.pos || (a.p.best || 1e9) - (b.p.best || 1e9));
+    if (race) out.sort((a, b) => a.pos - b.pos || (a.p.best || 1e9) - (b.p.best || 1e9));
+    else {
+      // Prácticas y qualy: el orden lo da la vuelta más rápida (como la torre oficial).
+      // En Q2/Q3 los que ya quedaron fuera van abajo con su tiempo de la fase en que salieron.
+      const all = quali ? stats("all") : st;
+      const ph = quali ? qPhase().ph : 0;
+      const N = out.length, alive = ph === 2 ? N - 6 : ph === 3 ? N - 12 : N;
+      const prevOrder = Object.keys(all.per).filter((n) => all.per[n].best).sort((a, b) => all.per[a].best - all.per[b].best);
+      const outOf = new Set(ph > 1 ? out.filter((r) => !r.p.best).map((r) => r.n) : []);
+      const k = (r) => (r.p.best ? [0, r.p.best] : outOf.has(r.n) && all.per[r.n]?.best ? [2, all.per[r.n].best] : [1, r.pos]);
+      out.sort((a, b) => { const x = k(a), y = k(b); return x[0] - y[0] || x[1] - y[1]; });
+      out.forEach((r, i) => { r.pos = i + 1; });
+      void alive; void prevOrder;
+    }
     return { out, st };
   }
 
@@ -853,6 +882,7 @@ button,input{font:inherit;color:inherit}
         const fv = (v) => (v == null ? "—" : typeof v === "number" ? "+" + v.toFixed(3) : String(v));
         a = `<div class="v">${r.pos === 1 ? "LÍDER" : esc(fv(r.intv && r.intv.interval))}<small>${fmt(r.lastDone && r.lastDone.lap_duration)}</small></div>`;
         b = `<div class="v">${r.pos === 1 ? "—" : esc(fv(r.intv && r.intv.gap_to_leader))}<small>${r.stops} PIT</small></div>`;
+        if (st.best.lapBy === r.n) gd += `<span class="tag push">VR</span>`;
         if (r.grid && r.pos < 99) { const g = r.grid - r.pos; gd = g > 0 ? `<span class="gd up">▲${g}</span>` : g < 0 ? `<span class="gd dn">▼${-g}</span>` : ""; }
       } else {
         const lastT = r.lastDone && r.lastDone.lap_duration;
@@ -1150,7 +1180,11 @@ button,input{font:inherit;color:inherit}
     if (!busy) {
       busy = true;
       try {
-        if (S && S.mode === "mqtt") { busy = false; timer = setTimeout(loop, 60000); return; }
+        if (S && S.mode === "mqtt") {
+          // Probamos el REST cada minuto: si OpenF1 ya lo deja (fin de sesión o corte), bajamos TODO lo anterior.
+          try { await backfill(); } catch {}
+          busy = false; timer = setTimeout(loop, 60000); return;
+        }
         if (!S) await boot(); else await poll(false); fails = 0;
       }
       catch (e) {
