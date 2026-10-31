@@ -399,6 +399,7 @@ button,input{font:inherit;color:inherit}
         if (!r.x && !r.y) break;
         const t = new Date(r.date).getTime();
         const arr = (S.loc[n] ||= []); arr.push([t, r.x, r.y]);
+        if (!S.track) { const tr = ((S.trail ||= {})[n] ||= []); tr.push([t, r.x, r.y]); if (tr.length > 900) tr.splice(0, 300); }
         if (t > newestLoc) newestLoc = t;
         if (arr.length > 300) arr.splice(0, arr.length - 200);
         lagEMA = Math.max(1500, Date.now() - newestLoc);
@@ -560,6 +561,7 @@ button,input{font:inherit;color:inherit}
 
   // ---------- trazado (GPS de una vuelta limpia) ----------
   function loadTrackCache() {
+    try { if (!S.sess.circuit_key) { const t = JSON.parse(store.get("track_last") || "null"); if (t && t.pts && t.pts.length > 50) S.track = prepTrack(t.pts); } } catch {}
     try { const t = JSON.parse(store.get("track_" + S.sess.circuit_key) || "null"); if (t && t.pts && t.pts.length > 50) S.track = prepTrack(t.pts); } catch {}
   }
   async function buildTrack() {
@@ -577,6 +579,35 @@ button,input{font:inherit;color:inherit}
       }
     } catch {}
     S.trackBusy = false;
+  }
+  // Trazado con el GPS en vivo: buscamos un auto que ya cerró una vuelta completa.
+  let lastTrailTry = 0;
+  function trackFromTrail() {
+    if (!S || S.track || !S.trail || Date.now() - lastTrailTry < 3000) return;
+    lastTrailTry = Date.now();
+    let best = null;
+    for (const n in S.trail) {
+      const tr = S.trail[n]; if (tr.length < 200) continue;
+      const L = tr[tr.length - 1];
+      for (let j = tr.length - 150; j >= 0; j--) {
+        const dt = L[0] - tr[j][0];
+        if (dt < 55000) continue;
+        if (dt > 150000) break;
+        if (Math.hypot(L[1] - tr[j][1], L[2] - tr[j][2]) < 450) {
+          const seg = tr.slice(j);
+          // descartamos si casi no se movió (en pits)
+          let len = 0; for (let k = 1; k < seg.length; k++) len += Math.hypot(seg[k][1] - seg[k - 1][1], seg[k][2] - seg[k - 1][2]);
+          if (len > 20000 && (!best || seg.length > best.length)) best = seg;
+          break;
+        }
+      }
+    }
+    if (best) {
+      const pts = best.map((p) => [p[1], p[2]]);
+      S.track = prepTrack(pts);
+      if (S.sess.circuit_key) store.set("track_" + S.sess.circuit_key, JSON.stringify({ pts }));
+      store.set("track_last", JSON.stringify({ pts }));
+    }
   }
   function prepTrack(pts) {
     let mx = 0, my = 0; for (const [x, y] of pts) { mx += x; my += y; } mx /= pts.length; my /= pts.length;
@@ -637,8 +668,9 @@ button,input{font:inherit;color:inherit}
     if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
     cx.setTransform(dpr, 0, 0, dpr, 0, 0);
     cx.clearRect(0, 0, W, H);
+    trackFromTrail();
     const T = S.track;
-    if (!T) { cx.fillStyle = "#7f8da0"; cx.font = "600 15px " + CF; cx.textAlign = "center"; cx.fillText("Armando el trazado con el GPS…", W / 2, H / 2); cx.fillText("(necesita una vuelta completa en la sesión)", W / 2, H / 2 + 20); return; }
+    if (!T) { cx.fillStyle = "#7f8da0"; cx.font = "600 15px " + CF; cx.textAlign = "center"; cx.fillText("Armando el trazado con el GPS en vivo…", W / 2, H / 2); cx.fillText("Tarda lo que dura una vuelta (≈1.5 min) con esta pestaña abierta", W / 2, H / 2 + 20); return; }
     const [x0, x1, y0, y1] = T.box, m = 28;
     const sc = Math.min((W - 2 * m) / (x1 - x0), (H - 2 * m) / (y1 - y0));
     const ox = (W - (x1 - x0) * sc) / 2 - x0 * sc, oy = (H - (y1 - y0) * sc) / 2 - y0 * sc;
@@ -667,7 +699,7 @@ button,input{font:inherit;color:inherit}
       cx.globalAlpha = p.old ? 0.35 : 1;
       cx.beginPath(); cx.arc(px, py, me ? 8 : 6, 0, 7); cx.fillStyle = col; cx.fill(); cx.lineWidth = me ? 3 : 1.5; cx.strokeStyle = me ? "#00d8ff" : "#05080c"; cx.stroke();
       cx.font = `800 ${me ? 13 : 11}px ${CF}`; cx.textAlign = "left";
-      const label = (S.pos[n] ? S.pos[n] + " " : "") + (d.name_acronym || n);
+      const rk = (S.rank || S.pos)[n]; const label = (rk ? rk + " " : "") + (d.name_acronym || n);
       const tw = cx.measureText(label).width;
       cx.fillStyle = me ? "#00d8ff" : "#0a1018e0"; cx.fillRect(px + 8, py - 8, tw + 6, 15);
       cx.fillStyle = me ? "#001018" : "#eef3f8"; cx.fillText(label, px + 11, py + 4);
@@ -757,7 +789,7 @@ button,input{font:inherit;color:inherit}
         if (f === "CHEQUERED" || /WILL NOT BE RESUMED/.test(msg)) ended = true;
       }
       if (now < start) return { lab: "EMPIEZA EN", txt: fmtClock(start - now) };
-      if (ps == null) return { lab: "Q" + ph, txt: fmtClock(dur[ph - 1] || 0) };
+      if (ps == null) return S.sess.synthetic ? { lab: "Q" + ph + " · EN CURSO", txt: "--:--" } : { lab: "Q" + ph, txt: fmtClock(dur[ph - 1] || 0) };
       const ref = redAt != null ? redAt : now;
       return { lab: "Q" + ph + (redAt != null ? " · PAUSA" : ended ? " · FIN" : ""), txt: ended ? "00:00" : fmtClock(dur[ph - 1] - (ref - ps - paused)) };
     }
@@ -865,6 +897,7 @@ button,input{font:inherit;color:inherit}
     document.querySelectorAll("#dens button").forEach((b) => b.classList.toggle("on", b.dataset.d === dens));
     $("hd").innerHTML = race ? "<span>P</span><span></span><span>PILOTO</span><span>INTERV.</span><span>LÍDER</span><span>N</span>" : "<span>P</span><span></span><span>PILOTO</span><span>MEJOR<br>ÚLTIMA</span><span>VS P1<br>↑ ADELANTE</span><span>N</span>";
     const { out, st } = buildRows();
+    S.rank = {}; for (const r of out) if (r.pos < 99) S.rank[r.n] = r.pos;
     const ob = st.best.lap, N = out.length;
     const ph = quali ? qPhase().ph : 0;
     const safe = ph === 1 ? N - 6 : ph === 2 ? N - 12 : 10;
@@ -1095,8 +1128,9 @@ button,input{font:inherit;color:inherit}
     }).join("") || '<div class="empty">Sin radios todavía (en 2026 la F1 libera pocos)</div>';
   }
   function renderChips() {
-    const ns = Object.keys(S.drivers).map(Number).sort((a, b) => (S.pos[a] || 99) - (S.pos[b] || 99));
-    $("chips").innerHTML = ns.map((n) => { const d = S.drivers[n]; return `<span class="chip${n === fav ? " fav" : ""}" data-n="${n}" style="--team:${esc(dcol(n))}"><i></i>${S.pos[n] || "–"} ${esc(d.name_acronym || n)}</span>`; }).join("");
+    const R = S.rank || S.pos;
+    const ns = Object.keys(S.drivers).map(Number).sort((a, b) => (R[a] || 99) - (R[b] || 99));
+    $("chips").innerHTML = ns.map((n) => { const d = S.drivers[n]; return `<span class="chip${n === fav ? " fav" : ""}" data-n="${n}" style="--team:${esc(dcol(n))}"><i></i>${R[n] || "–"} ${esc(d.name_acronym || n)}</span>`; }).join("");
   }
 
   // ---------- hoja del piloto ----------
