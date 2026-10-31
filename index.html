@@ -308,9 +308,20 @@ button,input{font:inherit;color:inherit}
     token = j.access_token; tokenExp = Date.now() + (+j.expires_in || 3600) * 1000;
     return token;
   }
+  // Cola: máximo ~4 peticiones por segundo (OpenF1 corta si te pasas y en señal mala
+  // conviene no saturar). Cada petición tiene límite de 15 s y un reintento.
+  let nextSlot = 0;
+  async function slot() { const now = Date.now(), t = Math.max(now, nextSlot); nextSlot = t + 250; if (t > now) await new Promise((ok) => setTimeout(ok, t - now)); }
+  async function get1(path) {
+    await slot();
+    const ac = new AbortController(), to = setTimeout(() => ac.abort(), 15000);
+    try { return await fetch(API + "/v1/" + path, { headers: { Authorization: "Bearer " + (await getToken()) }, signal: ac.signal }); }
+    finally { clearTimeout(to); }
+  }
   async function q(path) {
-    let r = await fetch(API + "/v1/" + path, { headers: { Authorization: "Bearer " + (await getToken()) } });
-    if (r.status === 401) { token = null; r = await fetch(API + "/v1/" + path, { headers: { Authorization: "Bearer " + (await getToken()) } }); }
+    let r;
+    try { r = await get1(path); } catch { await new Promise((ok) => setTimeout(ok, 1200)); r = await get1(path).catch(() => { throw new TypeError("red"); }); }
+    if (r.status === 401) { token = null; r = await get1(path); }
     if (r.status === 404 || r.status === 422) return [];
     if (r.status === 429) { await new Promise((ok) => setTimeout(ok, 1500)); return []; }
     if (!r.ok) throw new Error("HTTP " + r.status);
@@ -325,7 +336,7 @@ button,input{font:inherit;color:inherit}
   async function boot() {
     setStatus("CONECTANDO…", "warn");
     const now = Date.now();
-    let list = await q("sessions?year=" + new Date().getUTCFullYear());
+    let list = await q("sessions?meeting_key=latest");
     list = list.filter((s) => !s.is_cancelled).sort((a, b) => new Date(a.date_start) - new Date(b.date_start));
     let pick = null;
     for (const s of list) if (new Date(s.date_start).getTime() - 40 * 60000 <= now) pick = s;
@@ -337,7 +348,7 @@ button,input{font:inherit;color:inherit}
     renderHead();
     loadTrackCache();
     if (isRace()) soft(q("starting_grid?" + K()).then((a) => { for (const g of a) S.grid[g.driver_number] = g.position; }));
-    soft(loadChamp());
+    soft(q("sessions?year=" + new Date().getUTCFullYear()).then((a) => { if (a.length) S.year = a.filter((s) => !s.is_cancelled).sort((x, y) => new Date(x.date_start) - new Date(y.date_start)); }).then(loadChamp));
     await poll(true);
   }
 
@@ -386,7 +397,8 @@ button,input{font:inherit;color:inherit}
       jobs.push(soft(q("team_radio?" + K() + gt("date", S.cur.rad)).then((a) => { for (const r of a) { S.radios.push(r); if (!S.cur.rad || r.date > S.cur.rad) S.cur.rad = r.date; } })));
     }
     const before = snapBests();
-    await Promise.all(jobs);
+    const res = await Promise.allSettled(jobs);
+    if (res.every((x) => x.status === "rejected")) throw res[0].reason;
     S.lastOk = Date.now();
     if (!first) meAlert(before);
     if (!S.track && !S.trackBusy) buildTrack();
@@ -758,7 +770,7 @@ button,input{font:inherit;color:inherit}
       const cls = ["row"]; if (r.n === fav) cls.push("fav");
       if (quali && r.pos > alive && r.pos < 99) cls.push("out"); else if (quali && ph < 3 && r.pos > safe && r.pos < 99) cls.push("danger");
       const nm = dens === "compact" ? `${esc(d.name_acronym || "")} <span style="font-weight:600;color:var(--mut);font-size:12px">${esc(dname(d))}</span>` : esc(dname(d));
-      h += `<div data-n="${r.n}" class="${cls.join(" ")}" style="--team:${esc(col)}"><div class="p">${r.pos < 99 ? r.pos : "–"}</div><div class="bar"></div><div class="nm"><b>${nm}${gd}${dens === "compact" ? tg : ""}</b><small>${tg}${r.cutTxt ? r.cutTxt.replace(/<\/?small[^>]*>/g, (m) => (m.startsWith("</") ? "</span>" : m.replace("small", "span"))) : `<span>${esc(d.team_name || "")}</span>`}${r.tyre ? `<span>· LLANTA ${r.age}V</span>` : ""}</small></div>${a}${b}${ty}<div class="secs">${secs}</div></div>`;
+      h += `<div data-n="${r.n}" class="${cls.join(" ")}" style="--team:${esc(col)}"><div class="p">${r.pos < 99 ? r.pos : "–"}</div><div class="bar"></div><div class="nm"><b>${nm}${gd}${dens === "compact" ? tg : ""}</b><small>${tg}${r.cutTxt ? r.cutTxt.replace(/<\/?small[^>]*>/g, (m) => (m.startsWith("</") ? "</span>" : m.replace("small", "span"))) : `<span>${esc(d.team_name || "")}</span>`}${r.tyre ? `<span>· ${r.age}V USO</span>` : ""}</small></div>${a}${b}${ty}<div class="secs">${secs}</div></div>`;
     }
     $("rows").innerHTML = h || '<div class="empty">Sin datos todavía</div>';
   }
@@ -1024,7 +1036,7 @@ button,input{font:inherit;color:inherit}
       catch (e) {
         fails++;
         if (e.message === "auth") { showLogin("OpenF1 rechazó la cuenta. Revisa usuario y contraseña."); busy = false; return; }
-        setStatus(e instanceof TypeError ? "SIN CONEXIÓN · REINTENTANDO" : "ERROR · " + e.message, "err");
+        setStatus(e instanceof TypeError || e.name === "AbortError" ? "SEÑAL DÉBIL · REINTENTANDO" : "ERROR · " + e.message, "err");
       }
       busy = false;
     }
