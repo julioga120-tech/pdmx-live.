@@ -904,7 +904,7 @@ button,input{font:inherit;color:inherit}
     const race = isRace(), quali = isQuali();
     $("towerbox").className = dens === "compact" ? "compact" : "";
     document.querySelectorAll("#dens button").forEach((b) => b.classList.toggle("on", b.dataset.d === dens));
-    $("hd").innerHTML = race ? "<span>P</span><span></span><span>PILOTO</span><span>INTERV.</span><span>LÍDER</span><span>N</span>" : "<span>P</span><span></span><span>PILOTO</span><span>MEJOR<br>ÚLTIMA</span><span>VS P1<br>↑ ADELANTE</span><span>N</span>";
+    $("hd").innerHTML = race ? "<span>P</span><span></span><span>PILOTO</span><span>INTERV.</span><span>LÍDER</span><span>N</span>" : "<span>P</span><span></span><span>PILOTO</span><span>MEJOR<br>VUELTA</span><span>VS P1<br>↑ ADELANTE</span><span>N</span>";
     const { out, st } = buildRows();
     S.rank = {}; for (const r of out) if (r.pos < 99) S.rank[r.n] = r.pos;
     const ob = st.best.lap, N = out.length;
@@ -932,7 +932,7 @@ button,input{font:inherit;color:inherit}
         const lastT = r.lastDone && r.lastDone.lap_duration;
         const lc = lastT && ob && lastT > ob * 1.3 ? "—" : fmt(lastT);
         const lcls = lastT && r.lastDone === r.p.bestL ? (r.p.best <= ob + 1e-6 ? "ob" : "pb") : "";
-        a = `<div class="v ${r.p.best && r.p.best <= ob + 1e-6 ? "ob" : ""}">${fmt(r.p.best)}<small class="${lcls}">${lc}</small></div>`;
+        a = `<div class="v ${r.p.best && r.p.best <= ob + 1e-6 ? "ob" : ""}">${fmt(r.p.best)}<small class="${lcls}">${lastT ? "ÚLT " + lc : ""}</small></div>`;
         const diff = r.p.best && ob ? (r.p.best - ob < 0.0005 ? "—" : "+" + (r.p.best - ob).toFixed(3)) : "—";
         const dAh = prevBest && r.p.best ? r.p.best - prevBest : null;
         const ah = dAh != null ? "↑ " + (dAh >= 0 ? "+" : "−") + Math.abs(dAh).toFixed(3) : r.p.best && r === out[0] ? "P1" : "";
