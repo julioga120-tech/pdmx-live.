@@ -435,18 +435,18 @@ button,input{font:inherit;color:inherit}
     mq.on("connect", () => { mqTopics.clear(); mqSub(); setStatus("EN VIVO · MQTT", "ok"); $("dbg").textContent = ""; });
     mq.on("reconnect", async () => { try { mq.options.password = await getToken(); } catch {} setStatus("RECONECTANDO…", "warn"); });
     mq.on("error", (e) => { $("dbg").textContent = "MQTT: " + ((e && e.message) || e); if (/auth|Not authorized|Bad user/i.test(String(e && e.message))) { token = null; } });
+    clearInterval(S.tokT);
+    S.tokT = setInterval(async () => { try { token = null; mq.options.password = await getToken(); } catch {} }, 45 * 60000);
     mq.on("message", (topic, buf) => { try { const r = JSON.parse(new TextDecoder().decode(buf)); ingest(topic.replace(/^v1\//, ""), r); } catch {} });
     return true;
   }
 
   async function backfill() {
     if (!S || !S.sess) return;
-    let key = S.sess.session_key;
-    if (S.sess.synthetic || !key) {
-      const ss = await q("sessions?session_key=latest");
-      if (!ss.length) return;
-      const keepMode = S.mode; S.sess = ss[0]; S.mode = keepMode; key = ss[0].session_key; cacheSet("sess", ss[0]);
-    }
+    // Una sola consulta de prueba: si OpenF1 sigue cerrando el REST, no gastamos más.
+    const ss = await q("sessions?session_key=latest");
+    if (!ss.length) return;
+    if (S.sess.synthetic || !S.sess.session_key) { S.sess = ss[0]; cacheSet("sess", ss[0]); renderHead(); }
     const saved = { pos: S.cur.pos, laps: S.cur.laps, rc: S.cur.rc };
     S.cur.pos = S.cur.laps = S.cur.rc = undefined; // todo desde el inicio
     await poll(true);
@@ -907,7 +907,9 @@ button,input{font:inherit;color:inherit}
     if (om != null) $("flag").textContent = ts.txt + (om ? " · OVERTAKE MODE ✓" : " · OVERTAKE MODE ✗");
     $("wx").innerHTML = w ? `<span>AIRE <b>${Math.round(w.air_temperature)}°</b> · PISTA <b>${Math.round(w.track_temperature)}°</b></span><span>${w.rainfall ? '<b style="color:var(--cyan)">LLUVIA</b>' : "SIN LLUVIA"} · VIENTO <b>${Math.round((w.wind_speed || 0) * 3.6)}</b> km/h</span>` : "";
     const errs = [];
-    for (const [nm, f] of [["torre", renderTower], ["vueltas", renderLaps], ["rc", renderRC], ["chips", renderChips], ["clima", renderInfo], ["mundial", renderChamp]]) {
+    // Solo se pinta lo que estás viendo (ahorra batería); la torre siempre, porque da el orden.
+    const vis = { tower: [], map: [["chips", renderChips]], laps: [["vueltas", renderLaps]], rc: [["rc", renderRC]], info: [["clima", renderInfo]], champ: [["mundial", renderChamp]], set: [] }[view] || [];
+    for (const [nm, f] of [["torre", renderTower], ...vis]) {
       try { f(); } catch (e) { errs.push(nm + ": " + (e && e.message)); }
     }
     if (openN) try { renderSheet(openN); } catch (e) { errs.push("ficha: " + e.message); }
@@ -961,7 +963,7 @@ button,input{font:inherit;color:inherit}
       const sv = [sh.duration_sector_1, sh.duration_sector_2, sh.duration_sector_3];
       const segs = [sh.segments_sector_1, sh.segments_sector_2, sh.segments_sector_3];
       let extra = `<div class="spd">${sh.st_speed ? sh.st_speed + " km/h" : ""}</div>`;
-      const live = r.show && !(r.show.lap_duration > 0) && !r.show.is_pit_out_lap && r.p.s.every((x) => x > 0);
+      const live = !race && r.show && !(r.show.lap_duration > 0) && !r.show.is_pit_out_lap && r.p.s.every((x) => x > 0);
       if (live) {
         let done = 0, ref = 0, pred = 0;
         sv.forEach((v, i) => { if (v > 0) { done++; ref += r.p.s[i]; pred += v; } else pred += r.p.s[i]; });
@@ -1044,9 +1046,10 @@ button,input{font:inherit;color:inherit}
     if (!S) return;
     const c = S.champ;
     if (!c) { $("champv").innerHTML = '<div class="empty">Cargando campeonato… (OpenF1 lo publica después de cada carrera)</div>'; return; }
-    const live = isRace() && Object.keys(S.pos).length && new Date(S.sess.date_start).getTime() < Date.now();
+    const live = isRace() && Object.keys(S.rank || S.pos).length && new Date(S.sess.date_start).getTime() < Date.now();
     const table = live ? (isSprint() ? SPRINT_PTS : RACE_PTS) : null;
-    const add = (n) => (table && S.pos[n] && S.pos[n] <= table.length ? table[S.pos[n] - 1] : 0);
+    const R = S.rank && Object.keys(S.rank).length ? S.rank : S.pos;
+    const add = (n) => (table && R[n] && R[n] <= table.length ? table[R[n] - 1] : 0);
     const dr = c.dr.map((r) => ({ n: r.driver_number, pts: r.points_current, posC: r.position_current, posS: r.position_start, ptsS: r.points_start, proj: r.points_current + add(r.driver_number) }));
     if (table) dr.sort((a, b) => b.proj - a.proj); else dr.sort((a, b) => a.posC - b.posC);
     const lead = dr.length ? (table ? dr[0].proj : dr[0].pts) : 0;
@@ -1264,7 +1267,11 @@ button,input{font:inherit;color:inherit}
   }
   setInterval(() => { tickClock(); if (S && S.lastOk && Date.now() - S.lastOk > (S.mode === "mqtt" ? 90000 : rate * 3000 + 10000)) setStatus("SEÑAL LENTA", "warn"); }, 1000);
   setInterval(() => { if (S && view === "info") renderInfo(); }, 15000);
-  document.addEventListener("visibilitychange", () => { if (!document.hidden && cred.u) { loop(); pollGPS(); wake(); } });
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) { saveState(); return; }
+    if (cred.u) { loop(); pollGPS(); wake(); if (mq && !mq.connected) try { mq.reconnect(); } catch {} }
+  });
+  window.addEventListener("pagehide", saveState);
 
   // ---------- vistas ----------
   const VIEWS = ["tower", "map", "laps", "champ", "info", "rc", "set"];
@@ -1274,7 +1281,7 @@ button,input{font:inherit;color:inherit}
     document.querySelectorAll("#tabs button").forEach((b) => b.classList.toggle("on", b.dataset.v === v));
     window.scrollTo(0, 0);
     if (S && S.mode === "mqtt") mqSub(); else if (v === "map") pollGPS();
-    if (S && v === "info") renderInfo();
+    if (S) { try { render(); } catch {} }
   }
   function showLogin(msg) {
     $("v-login").classList.remove("hidden");
