@@ -397,6 +397,7 @@ button,input{font:inherit;color:inherit}
       case "drivers": S.drivers[n] = Object.assign(S.drivers[n] || {}, r); break;
       case "sessions": if (r.session_key) { const keep = S.sess.synthetic; S.sess = Object.assign({}, S.sess, r); if (keep) delete S.sess.synthetic; renderHead(); } break;
       case "location": {
+        S.gpsN = (S.gpsN || 0) + 1;
         if (!r.x && !r.y) break;
         const t = new Date(r.date).getTime();
         const arr = (S.loc[n] ||= []); arr.push([t, r.x, r.y]);
@@ -577,7 +578,7 @@ button,input{font:inherit;color:inherit}
         const t0 = new Date(l.date_start), t1 = new Date(t0.getTime() + l.lap_duration * 1000);
         const a = await q(`location?${K()}&driver_number=${l.driver_number}&date>=${encodeURIComponent(t0.toISOString())}&date<=${encodeURIComponent(t1.toISOString())}`);
         const pts = a.filter((p) => p.x || p.y).map((p) => [p.x, p.y]);
-        if (pts.length > 120) { S.track = prepTrack(pts); store.set("track_" + S.sess.circuit_key, JSON.stringify({ pts })); break; }
+        if (pts.length > 120) { S.track = prepTrack(pts); store.set("track_" + S.sess.circuit_key, JSON.stringify({ pts })); store.set("track_last", JSON.stringify({ pts })); break; }
       }
     } catch {}
     S.trackBusy = false;
@@ -593,9 +594,9 @@ button,input{font:inherit;color:inherit}
       const L = tr[tr.length - 1];
       for (let j = tr.length - 150; j >= 0; j--) {
         const dt = L[0] - tr[j][0];
-        if (dt < 55000) continue;
+        if (dt < 45000) continue;
         if (dt > 150000) break;
-        if (Math.hypot(L[1] - tr[j][1], L[2] - tr[j][2]) < 450) {
+        if (Math.hypot(L[1] - tr[j][1], L[2] - tr[j][2]) < 800) {
           const seg = tr.slice(j);
           // descartamos si casi no se movió (en pits)
           let len = 0; for (let k = 1; k < seg.length; k++) len += Math.hypot(seg[k][1] - seg[k - 1][1], seg[k][2] - seg[k - 1][2]);
@@ -671,14 +672,19 @@ button,input{font:inherit;color:inherit}
     cx.setTransform(dpr, 0, 0, dpr, 0, 0);
     cx.clearRect(0, 0, W, H);
     trackFromTrail();
-    const T = S.track;
-    if (!T) { cx.fillStyle = "#7f8da0"; cx.font = "600 15px " + CF; cx.textAlign = "center"; cx.fillText("Armando el trazado con el GPS en vivo…", W / 2, H / 2); cx.fillText("Tarda lo que dura una vuelta (≈1.5 min) con esta pestaña abierta", W / 2, H / 2 + 20); return; }
+    let T = S.track, cloud = null;
+    if (!T && S.trail) {
+      const pts = []; for (const n in S.trail) for (const p of S.trail[n]) pts.push([p[1], p[2]]);
+      if (pts.length > 150) { T = prepTrack(pts); cloud = T.P; }
+    }
+    if (!T) { cx.fillStyle = "#7f8da0"; cx.font = "600 15px " + CF; cx.textAlign = "center"; cx.fillText(S.mode === "mqtt" ? (S.gpsN ? "Recibiendo GPS (" + S.gpsN + ")… armando la pista" : "Esperando GPS de OpenF1…") : "Armando el trazado con el GPS…", W / 2, H / 2); cx.fillText(S.mode === "mqtt" && !S.gpsN ? "Si no llega nada, no hay autos en pista o OpenF1 no está mandando posiciones" : "Tarda lo que dura una vuelta (≈1.5 min) con esta pestaña abierta", W / 2, H / 2 + 20); return; }
     const [x0, x1, y0, y1] = T.box, m = 28;
     const sc = Math.min((W - 2 * m) / (x1 - x0), (H - 2 * m) / (y1 - y0));
     const ox = (W - (x1 - x0) * sc) / 2 - x0 * sc, oy = (H - (y1 - y0) * sc) / 2 - y0 * sc;
     const X = (p) => p[0] * sc + ox, Y = (p) => p[1] * sc + oy;
     cx.lineJoin = "round"; cx.lineCap = "round";
-    const path = () => { cx.beginPath(); T.P.forEach((p, i) => (i ? cx.lineTo(X(p), Y(p)) : cx.moveTo(X(p), Y(p)))); cx.closePath(); };
+    if (cloud) { cx.fillStyle = "#d9e2ec88"; for (const p of cloud) cx.fillRect(X(p) - 1, Y(p) - 1, 2, 2); }
+    const path = () => { if (cloud) { cx.beginPath(); return; } cx.beginPath(); T.P.forEach((p, i) => (i ? cx.lineTo(X(p), Y(p)) : cx.moveTo(X(p), Y(p)))); cx.closePath(); };
     const ts = trackState();
     path(); cx.strokeStyle = "#1c2838"; cx.lineWidth = 13; cx.stroke();
     path(); cx.strokeStyle = ts.st === "red" ? "#ff314f" : ts.st === "sc" ? "#ff9f1a" : "#d9e2ec"; cx.lineWidth = 3.5; cx.stroke();
@@ -687,7 +693,7 @@ button,input{font:inherit;color:inherit}
       const nS = S.sectorsN || 20, a = Math.floor(((ts.sector - 1) / nS) * T.P.length), b = Math.floor((ts.sector / nS) * T.P.length);
       cx.beginPath(); for (let i = a; i <= b && i < T.P.length; i++) (i === a ? cx.moveTo(X(T.P[i]), Y(T.P[i])) : cx.lineTo(X(T.P[i]), Y(T.P[i]))); cx.strokeStyle = "#ffd400"; cx.lineWidth = 6; cx.stroke();
     }
-    cx.fillStyle = "#fff"; cx.fillRect(X(T.start) - 6, Y(T.start) - 1.5, 12, 3);
+    if (!cloud) { cx.fillStyle = "#fff"; cx.fillRect(X(T.start) - 6, Y(T.start) - 1.5, 12, 3); }
     const target = Date.now() - Math.min(20000, Math.max(5000, (lagEMA || 3000) + 4500));
     const dt = lastFrame ? now - lastFrame : 0; lastFrame = now;
     if (!playT || Math.abs(target - playT) > 15000) playT = target; else playT += dt * (1 + Math.max(-0.25, Math.min(0.25, (target - playT) / 8000)));
@@ -707,6 +713,7 @@ button,input{font:inherit;color:inherit}
       cx.fillStyle = me ? "#001018" : "#eef3f8"; cx.fillText(label, px + 11, py + 4);
       cx.globalAlpha = 1;
     }
+    if (shown && cloud) { $("maptag").innerHTML = "ARMANDO LA PISTA CON EL GPS…"; return; }
     $("maptag").innerHTML = shown ? `GPS · <b>${Math.round((Date.now() - playT) / 1000)} s</b> DE RETRASO` : "ESPERANDO GPS…";
   }
   requestAnimationFrame(drawMap);
