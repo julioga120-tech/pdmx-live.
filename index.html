@@ -293,6 +293,7 @@ body.split{padding-bottom:0}
       La rayita bajo cada sector son los minisectores (azul = pit lane).<br>
       Toca un piloto (en torre, mapa, vueltas o mundial) para ver su ficha completa y marcarlo como TU PILOTO.</div></div>
     <div class="card"><h2>RELOJ</h2><div class="txt">Se calcula con la hora de la sesión y Race Control (en qualy se pausa con bandera roja). Puede variar unos segundos contra la tele.</div></div>
+    <div class="card"><h2>VERSIÓN</h2><div class="txt" id="ver">—</div></div>
     <div class="card"><h2>CUENTA</h2><div class="txt" id="acct">—</div><div style="padding:0 12px 12px"><button class="btn ghost" id="logout">SALIR Y BORRAR CUENTA DE ESTE CELULAR</button></div></div>
   </section>
 </main>
@@ -313,6 +314,7 @@ body.split{padding-bottom:0}
 <script src="mqtt.min.js"></script>
 <script>
 (() => {
+  const BUILD = "2026-11-01c";
   const API = "https://api.openf1.org";
   const $ = (id) => document.getElementById(id);
   const store = {
@@ -408,17 +410,23 @@ body.split{padding-bottom:0}
   // para navegadores es MQTT por WebSocket con la cuenta. Llega todo al instante.
   let mq = null, mqTopics = new Set(), renderT = 0;
   function softRender() { if (renderT) return; renderT = setTimeout(() => { renderT = 0; render(); }, 700); }
+  const DATA_TOPICS = new Set(["position", "intervals", "laps", "race_control", "location", "stints", "pit"]);
   function ingest(topic, r) {
     const n = r.driver_number;
+    if (!n && !["race_control", "weather", "sessions", "team_radio"].includes(topic)) return;
     if (r.session_key && S.sess.session_key && r.session_key !== S.sess.session_key) {
-      if (!S.sess.synthetic) return;
-      S.sess.session_key = r.session_key; loadState();
+      if (S.sess.synthetic) { S.sess.session_key = r.session_key; loadState(); }
+      // Llegan datos en vivo de otra sesión (más nueva): nos cambiamos a esa.
+      else if (DATA_TOPICS.has(topic) && r.session_key > S.sess.session_key) switchTo(r.session_key);
+      else return;
     }
     if (r.session_key && !S.sess.session_key) { S.sess.session_key = r.session_key; loadState(); }
     if (n && (topic === "laps" || topic === "location" || topic === "intervals")) (S.seenAt ||= {})[n] = Date.now();
     switch (topic) {
       case "position": S.pos[n] = r.position; break;
-      case "intervals": { const o = S.intv[n]; if (o && typeof o.interval === "number") r._prev = o.interval; S.intv[n] = r; break; }
+      case "intervals": {
+        if (S.sess.synthetic && !S.sess.session_type) { S.sess.session_type = "Race"; S.sess.session_name = "Race"; }
+ const o = S.intv[n]; if (o && typeof o.interval === "number") r._prev = o.interval; S.intv[n] = r; break; }
       case "laps": {
         const m = (S.laps[n] ||= {}); const before = snapBests();
         m[r.lap_number] = Object.assign(m[r.lap_number] || {}, r);
@@ -456,7 +464,8 @@ body.split{padding-bottom:0}
     for (const t of [...mqTopics]) if (!want.includes(t)) { mq.unsubscribe("v1/" + t); mqTopics.delete(t); }
   }
   async function startMQTT(sessGuess) {
-    if (mq || !window.mqtt) return !!mq;
+    if (mq) { if (S) S.mode = "mqtt"; return true; }
+    if (!window.mqtt) return false;
     const tok = await getToken();
     if (!S) {
       S = fresh(sessGuess || cacheGet("sess") || { session_key: 0, session_name: "Sesión en vivo", session_type: "", date_start: new Date().toISOString(), date_end: new Date(Date.now() + 2 * 3600000).toISOString(), synthetic: true });
@@ -483,6 +492,7 @@ body.split{padding-bottom:0}
     const ss = await q("sessions?session_key=latest");
     if (!ss.length) return;
     if (S.sess.synthetic || !S.sess.session_key) { S.sess = ss[0]; cacheSet("sess", ss[0]); renderHead(); }
+    else if (ss[0].session_key > S.sess.session_key && new Date(ss[0].date_start).getTime() - 40 * 60000 <= Date.now()) switchTo(ss[0].session_key, ss[0]);
     const saved = { pos: S.cur.pos, laps: S.cur.laps, rc: S.cur.rc };
     S.cur.pos = S.cur.laps = S.cur.rc = undefined; // todo desde el inicio
     await poll(true);
@@ -491,15 +501,40 @@ body.split{padding-bottom:0}
     void saved;
   }
 
-  async function boot() {
-    setStatus("CONECTANDO…", "warn");
+  // La sesión "actual": la última que ya empezó (o empieza en menos de 40 min).
+  function pickSession(list) {
     const now = Date.now();
-    let list = await q("sessions?meeting_key=latest");
     list = list.filter((s) => !s.is_cancelled).sort((a, b) => new Date(a.date_start) - new Date(b.date_start));
     let pick = null;
     for (const s of list) if (new Date(s.date_start).getTime() - 40 * 60000 <= now) pick = s;
-    pick = pick || list[list.length - 1];
-    if (!pick) throw new Error("Sin sesiones");
+    return { list, pick: pick || list[list.length - 1] };
+  }
+  // ¿Ya toca otra sesión? (abriste en la mañana con la qualy y ya va a empezar la carrera)
+  let lastSessCheck = 0;
+  async function checkSession() {
+    if (!S || Date.now() - lastSessCheck < 60000) return false;
+    lastSessCheck = Date.now();
+    const { pick } = pickSession(await q("sessions?meeting_key=latest"));
+    if (pick && pick.session_key && S.sess.session_key && pick.session_key !== S.sess.session_key) { switchTo(pick.session_key, pick); return true; }
+    return false;
+  }
+  // Cambia a otra sesión conservando pilotos, calendario, campeonato y pista.
+  function switchTo(key, sessObj) {
+    const old = S;
+    const found = sessObj || (old.year || []).find((x) => x.session_key === key);
+    S = fresh(found || { session_key: key, session_name: "Sesión en vivo", session_type: "", date_start: new Date().toISOString(), date_end: new Date(Date.now() + 2 * 3600000).toISOString(), synthetic: true });
+    S.drivers = old.drivers; S.year = old.year; S.champ = old.champ; S.mode = old.mode; S.mqStart = Date.now(); S.tokT = old.tokT;
+    if (!S.sess.circuit_key || S.sess.circuit_key === old.sess.circuit_key) S.track = old.track;
+    if (found) cacheSet("sess", found);
+    loadState(); if (!S.track) loadTrackCache();
+    if (isRace() && S.mode !== "mqtt") soft(q("starting_grid?" + K()).then((a) => { for (const g of a) S.grid[g.driver_number] = g.position; }));
+    renderHead(); render();
+  }
+
+  async function boot() {
+    setStatus("CONECTANDO…", "warn");
+    const { list, pick } = pickSession(await q("sessions?meeting_key=latest"));
+    if (!pick) throw new Error("OpenF1 no respondió (puede ser el límite de consultas); reintentando");
     S = fresh(pick);
     S.year = list;
     cacheSet("sess", pick);
@@ -794,6 +829,19 @@ body.split{padding-bottom:0}
     return st;
   }
   function lapPhase(l, st) { let ph = 1; for (const k of [2, 3]) if (st[k] && l.date_start >= st[k]) ph = k; return ph; }
+  // Sanciones de carrera desde Race Control: "+5s", "DT", "S&G".
+  function penalties() {
+    const p = {};
+    for (const m of S.rc) {
+      const t = (m.message || "").toUpperCase();
+      let x = /(\d+) SECOND TIME PENALTY FOR CAR (\d+)/.exec(t);
+      if (x) { p[x[2]] = "+" + x[1] + "s"; continue; }
+      x = /DRIVE THROUGH PENALTY FOR CAR (\d+)/.exec(t); if (x) { p[x[1]] = "DT"; continue; }
+      x = /STOP AND GO PENALTY FOR CAR (\d+)/.exec(t); if (x) { p[x[1]] = "S&G"; continue; }
+      x = /PENALTY (?:SERVED|CANCELLED|RESCINDED).*CAR (\d+)|CAR (\d+).*PENALTY (?:SERVED|CANCELLED|RESCINDED)/.exec(t); if (x) delete p[x[1] || x[2]];
+    }
+    return p;
+  }
   function overtakeMode() {
     let on = null;
     for (const m of S.rc) { const t = (m.message || "").toUpperCase(); if (/OVERTAKE MODE ENABLED|DRS ENABLED/.test(t)) on = true; else if (/OVERTAKE MODE DISABLED|DRS DISABLED/.test(t)) on = false; }
@@ -824,7 +872,7 @@ body.split{padding-bottom:0}
     if (isRace()) {
       let lap = 0; for (const n in S.laps) for (const l in S.laps[n]) lap = Math.max(lap, +l);
       const tot = isSprint() ? 0 : TOTAL_LAPS[s.circuit_short_name] || TOTAL_LAPS[s.location] || 0;
-      if (now < start) return { lab: "EMPIEZA EN", txt: fmtClock(start - now) };
+      if (now < start && !lap) return { lab: "EMPIEZA EN", txt: fmtClock(start - now) };
       return { lab: "VUELTA", txt: tot ? `${lap}/${tot}` : String(lap || "—") };
     }
     if (isQuali()) {
@@ -891,6 +939,7 @@ body.split{padding-bottom:0}
       if (last && last.is_pit_out_lap && !(last.lap_duration > 0)) tag = "out";
       const lp = pits[pits.length - 1];
       if (lp && last && lp.lap_number >= last.lap_number && !race) tag = "pit";
+      if (race && lp && lp.date && Date.now() - new Date(lp.date).getTime() < 40000) tag = "pit";
       if (!tag && show && show === last && !(last.lap_duration > 0) && [show.duration_sector_1, show.duration_sector_2].some((v, i) => v > 0 && v <= (p.s[i] || 0) + 1e-6)) tag = "push";
       const nLaps = last ? last.lap_number : 0;
       out.push({ n: +n, d: S.drivers[n], pos: S.pos[n] || 99, p, show, lastDone, nLaps, tyre: stint ? (stint.compound || "")[0] : "", age: stint ? (stint.tyre_age_at_start || 0) + Math.max(0, nLaps - stint.lap_start) : 0, intv: S.intv[n], stops: pits.length, tag, grid: S.grid[n] });
@@ -926,7 +975,7 @@ body.split{padding-bottom:0}
   const sName = (s) => (NAMES[s.session_name] || s.session_name || "").toUpperCase();
   function renderHead() {
     const s = S.sess;
-    $("sname").textContent = s.synthetic ? (isQuali() ? "CLASIFICACIÓN" : "SESIÓN EN VIVO") : sName(s);
+    $("sname").textContent = s.synthetic ? (isQuali() ? "CLASIFICACIÓN" : isRace() ? "CARRERA" : "SESIÓN EN VIVO") : sName(s);
     $("ssub").textContent = s.synthetic ? "EN VIVO · DATOS DESDE QUE ABRISTE LA PÁGINA" : `${(s.location || s.circuit_short_name || "").toUpperCase()} · ${s.year || ""}`;
   }
   const dname = (d) => (d ? d.last_name || d.broadcast_name || d.name_acronym || "" : "").toUpperCase();
@@ -960,6 +1009,7 @@ body.split{padding-bottom:0}
     document.querySelectorAll("#dens button").forEach((b) => b.classList.toggle("on", b.dataset.d === dens));
     $("hd").innerHTML = race ? "<span>P</span><span></span><span>PILOTO</span><span>INTERV.</span><span>LÍDER</span><span>N</span>" : "<span>P</span><span></span><span>PILOTO</span><span>MEJOR<br>VUELTA</span><span>VS P1<br>↑ ADELANTE</span><span>N</span>";
     const { out, st } = buildRows();
+    const pens = race ? penalties() : {};
     S.rank = {}; for (const r of out) if (r.pos < 99) S.rank[r.n] = r.pos;
     const ob = st.best.lap, N = out.length;
     const ph = quali ? qPhase().ph : 0;
@@ -980,8 +1030,9 @@ body.split{padding-bottom:0}
         const tr = typeof iv === "number" && typeof pv === "number" && Math.abs(iv - pv) >= 0.05 ? (iv < pv ? '<span style="color:var(--green);font-size:10px"> ▼</span>' : '<span style="color:var(--red);font-size:10px"> ▲</span>') : "";
         a = `<div class="v">${r.pos === 1 ? "LÍDER" : esc(fv(iv)) + tr}<small>${fmt(r.lastDone && r.lastDone.lap_duration)}</small></div>`;
         b = `<div class="v">${r.pos === 1 ? "—" : esc(fv(r.intv && r.intv.gap_to_leader))}<small>${r.stops} PIT</small></div>`;
-        if (st.best.lapBy === r.n) gd += `<span class="tag push">VR</span>`;
         if (r.grid && r.pos < 99) { const g = r.grid - r.pos; gd = g > 0 ? `<span class="gd up">▲${g}</span>` : g < 0 ? `<span class="gd dn">▼${-g}</span>` : ""; }
+        if (st.best.lapBy === r.n) gd += `<span class="tag push">VR</span>`;
+        if (pens[r.n]) gd += `<span class="tag pit">${esc(pens[r.n])}</span>`;
       } else {
         const lastT = r.lastDone && r.lastDone.lap_duration;
         const lc = lastT && ob && lastT > ob * 1.3 ? "—" : fmt(lastT);
@@ -1024,7 +1075,8 @@ body.split{padding-bottom:0}
     return `<div class="li${+n === fav ? " fav" : ""}" data-n="${n}" style="--team:${esc(dcol(n))}"><span class="n">${i}</span><span class="bar" style="height:22px"></span><span><b>${esc(main)}</b><small>${sub}</small></span><span class="r ${cls || ""}">${right}${rsub ? `<small>${rsub}</small>` : ""}</span></div>`;
   }
   function strategyHTML() {
-    const ns = Object.keys(S.drivers).map(Number).sort((a, b) => (S.pos[a] || 99) - (S.pos[b] || 99));
+    const RK = S.rank && Object.keys(S.rank).length ? S.rank : S.pos;
+    const ns = Object.keys(S.drivers).map(Number).sort((a, b) => (RK[a] || 99) - (RK[b] || 99));
     let maxLap = 1; for (const n in S.laps) for (const l in S.laps[n]) maxLap = Math.max(maxLap, +l);
     const tot = isRace() && !isSprint() ? Math.max(maxLap, TOTAL_LAPS[S.sess.circuit_short_name] || 0) : maxLap;
     const rows = ns.map((n) => {
@@ -1050,7 +1102,8 @@ body.split{padding-bottom:0}
     const ob = bests.length ? st.per[bests[0]].best : 0;
     h += `<div class="card"><h2>MEJOR VUELTA POR PILOTO <small>${bests.length} PILOTOS</small></h2>` + (bests.map((n, i) => { const p = st.per[n], l = p.bestL; const t = S.stintAll[n]?.find((s) => l.lap_number >= s.lap_start && (!s.lap_end || l.lap_number <= s.lap_end)); return li(i + 1, n, name(n), `V${l.lap_number}${t ? " · " + esc((t.compound || "")[0]) : ""} · <span class="${secCls(l.duration_sector_1, p.s[0], st.best.s[0])}">${fs(l.duration_sector_1)}</span> / <span class="${secCls(l.duration_sector_2, p.s[1], st.best.s[1])}">${fs(l.duration_sector_2)}</span> / <span class="${secCls(l.duration_sector_3, p.s[2], st.best.s[2])}">${fs(l.duration_sector_3)}</span>`, fmt(p.best), i ? "+" + (p.best - ob).toFixed(3) : "", i ? "" : "ob"); }).join("") || '<div class="empty">Sin vueltas completas</div>') + `</div>`;
     h += (() => {
-      const ns = Object.keys(S.drivers).map(Number).sort((a, b) => (S.pos[a] || 99) - (S.pos[b] || 99));
+      const RK = S.rank && Object.keys(S.rank).length ? S.rank : S.pos;
+    const ns = Object.keys(S.drivers).map(Number).sort((a, b) => (RK[a] || 99) - (RK[b] || 99));
       const rows = ns.map((n) => {
         const L = (st.per[n] || { laps: [] }).laps; const l = [...L].reverse().find((x) => x.segments_sector_1 && x.segments_sector_1.length) ;
         if (!l) return "";
@@ -1285,7 +1338,9 @@ body.split{padding-bottom:0}
           try { await backfill(); } catch {}
           busy = false; timer = setTimeout(loop, 60000); return;
         }
-        if (!S) await boot(); else await poll(false); fails = 0;
+        if (!S) await boot();
+        else { if (await checkSession().catch(() => false)) { busy = false; timer = setTimeout(loop, 1000); return; } await poll(false); }
+        fails = 0;
       }
       catch (e) {
         fails++;
@@ -1388,6 +1443,20 @@ body.split{padding-bottom:0}
   }
   paintOpts();
   wake();
+  $("ver").textContent = "Versión " + BUILD + " · si la recargas y no cambia, espera 1 minuto (GitHub tarda en actualizar).";
+  // Aviso de versión nueva (GitHub guarda la página unos minutos en caché).
+  async function checkUpdate() {
+    try {
+      if (location.protocol === "file:") return;
+      const t = await (await fetch("index.html?v=" + Date.now(), { cache: "no-store" })).text();
+      const m = /const BUILD = "([^"]+)"/.exec(t);
+      if (m && m[1] !== BUILD) {
+        $("alertbox").innerHTML = '<div class="alert me" id="upd" style="cursor:pointer">HAY VERSIÓN NUEVA · TOCA AQUÍ PARA ACTUALIZAR</div>';
+        $("upd").onclick = () => location.reload();
+      }
+    } catch {}
+  }
+  setInterval(checkUpdate, 5 * 60000); setTimeout(checkUpdate, 20000);
 
   if (cred.u && cred.p) { $("tabs").classList.remove("hidden"); show("tower"); loop(); } else showLogin("");
 })();
