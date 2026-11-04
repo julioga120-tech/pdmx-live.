@@ -69,7 +69,7 @@ button,input{font:inherit;color:inherit}
 .nm small{display:flex;gap:5px;align-items:center;font-size:11px;font-weight:600;color:var(--mut);white-space:nowrap;overflow:hidden}
 .gd{font-size:11px;font-weight:800}.gd.up{color:var(--green)}.gd.dn{color:var(--red)}
 .tag{font-size:10px;font-weight:800;padding:0 4px;border-radius:2px;letter-spacing:.6px;background:#25344a;color:#cfe}
-.tag.pit{background:#3b2a07;color:var(--orange)}.tag.out{background:#06303a;color:var(--cyan)}.tag.push{background:#2a1240;color:var(--purple)}
+.tag.pit{background:#3b2a07;color:var(--orange)}.tag.dnf{background:#3a0912;color:#ff6a7f}.tag.out{background:#06303a;color:var(--cyan)}.tag.push{background:#2a1240;color:var(--purple)}
 .v{text-align:right;font-size:15px;font-weight:700;line-height:1.1;white-space:nowrap}
 .v small{display:block;font-size:11px;color:var(--mut);font-weight:600}
 .ob{color:var(--purple)!important}.pb{color:var(--green)!important}.yl{color:var(--yellow)!important}
@@ -314,7 +314,7 @@ body.split{padding-bottom:0}
 <script src="mqtt.min.js"></script>
 <script>
 (() => {
-  const BUILD = "2026-11-01c";
+  const BUILD = "2026-11-04a";
   const API = "https://api.openf1.org";
   const $ = (id) => document.getElementById(id);
   const store = {
@@ -925,6 +925,39 @@ body.split{padding-bottom:0}
   const secCls = (v, mine, ob) => (!(v > 0) ? "" : v <= ob + 1e-6 ? "ob" : v <= mine + 1e-6 ? "pb" : "yl");
   const msHTML = (arr) => (arr && arr.length ? `<div class="ms">${arr.map((c) => `<span class="m${String(c).slice(-2)}"></span>`).join("")}</div>` : "");
 
+  // Abandonos en carrera. Se combinan 3 señales porque OpenF1 no tiene un campo "retirado":
+  //  1) Race Control lo dice (RETIRED / WILL NOT START),
+  //  2) dejó de completar vueltas: su última vuelta empezó hace más de 3 vueltas de ritmo
+  //     comparado con la vuelta más reciente de cualquier auto (fechas de los datos, no del reloj),
+  //  3) ya no le llegan intervalos (los demás sí) por más de 90 s, mientras no haya bandera a cuadros.
+  function retiredSet() {
+    const out = new Set();
+    if (!isRace()) return out;
+    for (const m of S.rc) {
+      const t = (m.message || "").toUpperCase();
+      const x = /CAR (\d+)\b.*\b(RETIRED|WILL NOT START|DID NOT START|WITHDRAWN)/.exec(t);
+      if (x) out.add(+x[1]);
+    }
+    let newest = 0; const lastStart = {}; const durs = [];
+    for (const n in S.laps) for (const l of Object.values(S.laps[n])) {
+      const t = l.date_start ? Date.parse(l.date_start) : 0;
+      if (t > (lastStart[n] || 0)) lastStart[n] = t;
+      if (t > newest) newest = t;
+      if (l.lap_duration > 0 && !l.is_pit_out_lap) durs.push(l.lap_duration);
+    }
+    durs.sort((a, b) => a - b);
+    const med = durs.length ? durs[Math.floor(durs.length / 2)] : 90;
+    const lim = Math.max(240, med * 3) * 1000;
+    for (const n in lastStart) if (newest && lastStart[n] && newest - lastStart[n] > lim) out.add(+n);
+    const chq = S.rc.some((m) => (m.flag || "").toUpperCase() === "CHEQUERED");
+    if (!chq) {
+      let nI = 0; const ti = {};
+      for (const n in S.intv) { const t = Date.parse(S.intv[n].date || "") || 0; ti[n] = t; if (t > nI) nI = t; }
+      for (const n in ti) if (nI && ti[n] && nI - ti[n] > 90000) out.add(+n);
+    }
+    return out;
+  }
+
   function buildRows() {
     const quali = isQuali(), race = isRace();
     const st = stats(quali ? "phase" : "all");
@@ -940,11 +973,18 @@ body.split{padding-bottom:0}
       const lp = pits[pits.length - 1];
       if (lp && last && lp.lap_number >= last.lap_number && !race) tag = "pit";
       if (race && lp && lp.date && Date.now() - new Date(lp.date).getTime() < 40000) tag = "pit";
-      if (!tag && show && show === last && !(last.lap_duration > 0) && [show.duration_sector_1, show.duration_sector_2].some((v, i) => v > 0 && v <= (p.s[i] || 0) + 1e-6)) tag = "push";
+      if (!race && !tag && show && show === last && !(last.lap_duration > 0) && [show.duration_sector_1, show.duration_sector_2].some((v, i) => v > 0 && v <= (p.s[i] || 0) + 1e-6)) tag = "push";
       const nLaps = last ? last.lap_number : 0;
       out.push({ n: +n, d: S.drivers[n], pos: S.pos[n] || 99, p, show, lastDone, nLaps, tyre: stint ? (stint.compound || "")[0] : "", age: stint ? (stint.tyre_age_at_start || 0) + Math.max(0, nLaps - stint.lap_start) : 0, intv: S.intv[n], stops: pits.length, tag, grid: S.grid[n] });
     }
     if (race) {
+      const ret = retiredSet();
+      for (const r of out) if (ret.has(r.n)) { r.dnf = true; r.tag = "dnf"; }
+      // Avisar una vez cuando alguien abandona (no al abrir la página con abandonos viejos).
+      if (Object.keys(S.laps).length) {
+        if (S.retSeen) { for (const n of ret) if (!S.retSeen.has(n) && S.drivers[n]) showAlert("ABANDONO · " + dname(S.drivers[n]), "red"); }
+        S.retSeen = new Set(ret);
+      }
       // Carrera: posición oficial; si falta (abriste ya empezada), se ubica por su distancia al líder.
       const gapNum = (r) => { const g = r.intv && r.intv.gap_to_leader; if (r.pos === 1) return 0; if (typeof g === "number") return g; if (typeof g === "string") { const m = /(\d+)\s*LAP/i.exec(g); if (m) return 1000 * +m[1]; } return null; };
       const haveGap = out.filter((r) => gapNum(r) != null).length;
@@ -952,6 +992,12 @@ body.split{padding-bottom:0}
         out.sort((a, b) => { const ga = gapNum(a), gb = gapNum(b); if (ga != null && gb != null) return ga - gb || a.pos - b.pos; if (ga != null) return -1; if (gb != null) return 1; return a.pos - b.pos; });
         out.forEach((r, i) => { if (gapNum(r) != null || r.pos < 99) r.pos = i + 1; });
       } else out.sort((a, b) => a.pos - b.pos || (a.p.best || 1e9) - (b.p.best || 1e9));
+      // Los que abandonaron van al final (como la clasificación oficial: más vueltas, más arriba).
+      if (ret.size) {
+        const act = out.filter((r) => !r.dnf), dnf = out.filter((r) => r.dnf).sort((a, b) => b.nLaps - a.nLaps);
+        out.length = 0; out.push(...act, ...dnf);
+        let k = 0; for (const r of out) { if (r.dnf || r.pos < 99 || (r.intv && r.intv.gap_to_leader != null)) r.pos = ++k; else ++k; }
+      }
     }
     else {
       // Prácticas y qualy: el orden lo da la vuelta más rápida (como la torre oficial).
@@ -1022,14 +1068,16 @@ body.split{padding-bottom:0}
       if (quali && ph < 3 && r.pos === safe + 1) h += `<div class="cut">ZONA DE ELIMINACIÓN · Q${ph}${cutT ? ` · CORTE ${fmt(cutT)} (${esc(cutRow.d.name_acronym || "")})` : ""}</div>`;
       if (quali && ph > 1 && r.pos === alive + 1) h += `<div class="cut red">ELIMINADOS</div>`;
       const d = r.d, col = "#" + (d.team_colour || "888");
-      const tg = r.tag === "pit" ? '<span class="tag pit">BOX</span>' : r.tag === "out" ? '<span class="tag out">OUT</span>' : r.tag === "push" ? '<span class="tag push">PUSH</span>' : "";
+      const tg = r.tag === "dnf" ? '<span class="tag dnf">ABANDONO</span>' : r.tag === "pit" ? '<span class="tag pit">BOX</span>' : r.tag === "out" ? '<span class="tag out">OUT</span>' : r.tag === "push" ? '<span class="tag push">PUSH</span>' : "";
       let a, b, gd = "";
       if (race) {
         const fv = (v) => (v == null ? "—" : typeof v === "number" ? "+" + v.toFixed(3) : String(v));
         const iv = r.intv && r.intv.interval, pv = r.intv && r.intv._prev;
         const tr = typeof iv === "number" && typeof pv === "number" && Math.abs(iv - pv) >= 0.05 ? (iv < pv ? '<span style="color:var(--green);font-size:10px"> ▼</span>' : '<span style="color:var(--red);font-size:10px"> ▲</span>') : "";
-        a = `<div class="v">${r.pos === 1 ? "LÍDER" : esc(fv(iv)) + tr}<small>${fmt(r.lastDone && r.lastDone.lap_duration)}</small></div>`;
-        b = `<div class="v">${r.pos === 1 ? "—" : esc(fv(r.intv && r.intv.gap_to_leader))}<small>${r.stops} PIT</small></div>`;
+        a = r.dnf ? `<div class="v" style="color:#ff6a7f">OUT<small>${fmt(r.lastDone && r.lastDone.lap_duration)}</small></div>`
+          : `<div class="v">${r.pos === 1 ? "LÍDER" : esc(fv(iv)) + tr}<small>${fmt(r.lastDone && r.lastDone.lap_duration)}</small></div>`;
+        b = r.dnf ? `<div class="v">${r.nLaps} V<small>${r.stops} PIT</small></div>`
+          : `<div class="v">${r.pos === 1 ? "—" : esc(fv(r.intv && r.intv.gap_to_leader))}<small>${r.stops} PIT</small></div>`;
         if (r.grid && r.pos < 99) { const g = r.grid - r.pos; gd = g > 0 ? `<span class="gd up">▲${g}</span>` : g < 0 ? `<span class="gd dn">▼${-g}</span>` : ""; }
         if (st.best.lapBy === r.n) gd += `<span class="tag push">VR</span>`;
         if (pens[r.n]) gd += `<span class="tag pit">${esc(pens[r.n])}</span>`;
@@ -1064,6 +1112,7 @@ body.split{padding-bottom:0}
       }
       const secs = sv.map((v, i) => `<div class="sec ${secCls(v, r.p.s[i], st.best.s[i])}"><i>S${i + 1}</i>${fs(v)}${msHTML(segs[i])}</div>`).join("") + extra;
       const cls = ["row"]; if (r.n === fav) cls.push("fav");
+      if (r.dnf) cls.push("out");
       if (quali && r.pos > alive && r.pos < 99) cls.push("out"); else if (quali && ph < 3 && r.pos > safe && r.pos < 99) cls.push("danger");
       const nm = dc ? `${esc(d.name_acronym || "")} <span style="font-weight:600;color:var(--mut);font-size:12px">${esc(dname(d))}</span>` : esc(dname(d));
       h += `<div data-n="${r.n}" class="${cls.join(" ")}" style="--team:${esc(col)}"><div class="p">${r.pos < 99 ? r.pos : "–"}</div><div class="bar"></div><div class="nm"><b>${nm}${gd}${dc ? tg : ""}</b><small>${tg}${r.cutTxt ? r.cutTxt.replace(/<\/?small[^>]*>/g, (m) => (m.startsWith("</") ? "</span>" : m.replace("small", "span"))) : `<span>${esc(d.team_name || "")}</span>`}${r.tyre ? `<span>· ${r.age}V USO</span>` : ""}</small></div>${a}${b}${ty}<div class="secs">${secs}</div></div>`;
@@ -1139,7 +1188,8 @@ body.split{padding-bottom:0}
     const live = isRace() && Object.keys(S.rank || S.pos).length && new Date(S.sess.date_start).getTime() < Date.now();
     const table = live ? (isSprint() ? SPRINT_PTS : RACE_PTS) : null;
     const R = S.rank && Object.keys(S.rank).length ? S.rank : S.pos;
-    const add = (n) => (table && R[n] && R[n] <= table.length ? table[R[n] - 1] : 0);
+    const DNF = S.retSeen || new Set();
+    const add = (n) => (table && !DNF.has(+n) && R[n] && R[n] <= table.length ? table[R[n] - 1] : 0);
     const dr = c.dr.map((r) => ({ n: r.driver_number, pts: r.points_current, posC: r.position_current, posS: r.position_start, ptsS: r.points_start, proj: r.points_current + add(r.driver_number) }));
     if (table) dr.sort((a, b) => b.proj - a.proj); else dr.sort((a, b) => a.posC - b.posC);
     const lead = dr.length ? (table ? dr[0].proj : dr[0].pts) : 0;
