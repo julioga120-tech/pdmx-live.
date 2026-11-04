@@ -1078,7 +1078,7 @@ body.split{padding-bottom:0}
           : `<div class="v">${r.pos === 1 ? "LÍDER" : esc(fv(iv)) + tr}<small>${fmt(r.lastDone && r.lastDone.lap_duration)}</small></div>`;
         b = r.dnf ? `<div class="v">${r.nLaps} V<small>${r.stops} PIT</small></div>`
           : `<div class="v">${r.pos === 1 ? "—" : esc(fv(r.intv && r.intv.gap_to_leader))}<small>${r.stops} PIT</small></div>`;
-        if (r.grid && r.pos < 99) { const g = r.grid - r.pos; gd = g > 0 ? `<span class="gd up">▲${g}</span>` : g < 0 ? `<span class="gd dn">▼${-g}</span>` : ""; }
+        if (r.grid && r.pos < 99 && !r.dnf) { const g = r.grid - r.pos; gd = g > 0 ? `<span class="gd up">▲${g}</span>` : g < 0 ? `<span class="gd dn">▼${-g}</span>` : ""; }
         if (st.best.lapBy === r.n) gd += `<span class="tag push">VR</span>`;
         if (pens[r.n]) gd += `<span class="tag pit">${esc(pens[r.n])}</span>`;
       } else {
