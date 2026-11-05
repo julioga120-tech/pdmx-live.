@@ -1,0 +1,4 @@
+# Puente PDMX → OpenF1 (Cloudflare Workers, plan gratis)
+name = "pdmx-puente"
+main = "worker.js"
+compatibility_date = "2025-01-01"

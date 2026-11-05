@@ -230,6 +230,16 @@ body.split{padding-bottom:0}
 }
 .lbrand{display:none}
 @media (orientation:landscape) and (max-height:540px){.lbrand{display:flex;align-items:center;gap:6px;margin-right:10px}.lbrand img{height:22px}}
+#note{padding:0 12px;font-size:12px;color:var(--yellow);font-weight:700;line-height:1.35}
+#note:not(:empty){padding:6px 12px}
+#updbox .alert{top:auto;bottom:calc(70px + env(safe-area-inset-bottom));cursor:pointer}
+.fld{width:100%;padding:11px;background:#080d14;border:1px solid #2a3b4f;border-radius:6px;font-size:15px;color:var(--tx)}
+details.how{padding:0 12px 12px;font-size:14px;color:#c7d1dd;line-height:1.5}
+details.how summary{cursor:pointer;font-weight:800;color:var(--cyan);letter-spacing:.6px;padding:6px 0}
+details.how ol{padding-left:20px}
+details.how li{margin:4px 0}
+details.how code{color:var(--cyan)}
+.okc{color:var(--green)!important}.badc{color:#ff8a9b!important}
 .hidden{display:none!important}
 </style>
 </head>
@@ -260,6 +270,7 @@ body.split{padding-bottom:0}
   <section id="v-tower" class="hidden">
     <div class="tbar"><div class="seg" id="dens"><button data-d="full">DETALLE (SECTORES)</button><button data-d="compact">LOS 22 EN PANTALLA</button></div></div>
     <div id="dbg" style="padding:4px 12px;font-size:11px;color:#ff8a9b;font-weight:700"></div>
+    <div id="note"></div>
     <div id="towerbox"><div class="hd" id="hd"></div><div id="rows"><div class="empty">Cargando…</div></div></div>
   </section>
 
@@ -279,14 +290,29 @@ body.split{padding-bottom:0}
   </section>
 
   <section id="v-set" class="pad hidden">
+    <div class="card"><h2>PUENTE · DATOS COMPLETOS EN VIVO <small id="relay-badge">SIN PUENTE</small></h2>
+      <div class="txt">Durante la sesión OpenF1 no deja que el navegador baje lo que ya pasó. Con tu puente (gratis, se hace una vez en 5 minutos) ves <b>todo</b> aunque entres tarde o bloquees el celular, y el reloj de qualy sale exacto. Sin puente la página sigue funcionando, pero solo con lo que llegue desde que la abres.</div>
+      <div style="padding:0 12px 4px"><input class="fld" id="relay" placeholder="https://pdmx-puente.TU-USUARIO.workers.dev" autocapitalize="none" spellcheck="false" inputmode="url"></div>
+      <div style="padding:0 12px"><a class="btn" style="display:block;text-align:center;text-decoration:none;margin-top:8px" target="_blank" rel="noopener" href="https://deploy.workers.cloudflare.com/?url=https://github.com/julioga120-tech/pdmx-live./tree/main/puente">1 · CREAR MI PUENTE EN CLOUDFLARE</a></div>
+      <div class="txt" style="padding-bottom:4px">2 · Cuando termine, copia la dirección que te da (termina en <b>.workers.dev</b>) y pégala aquí:</div>
+      <div class="opt" style="padding-top:8px"><button id="relay-save">GUARDAR Y PROBAR</button><button id="relay-copy">COPIAR CÓDIGO</button></div>
+      <div class="txt" id="relay-st" style="padding-top:0">—</div>
+      <details class="how"><summary>SI EL BOTÓN NO FUNCIONA: HAZLO A MANO (5 MIN)</summary><ol>
+        <li>En la compu o el celular entra a <b>dash.cloudflare.com</b> y crea tu cuenta gratis (correo y contraseña).</li>
+        <li>Ve a <b>Workers y Pages</b> → <b>Crear</b> → <b>Worker</b> (el de “Hello World”). Ponle de nombre <code>pdmx-puente</code> y dale <b>Implementar / Deploy</b>.</li>
+        <li>Abre <b>Editar código</b>, borra todo lo que trae.</li>
+        <li>Aquí toca <b>COPIAR CÓDIGO</b>, pégalo allá y dale <b>Implementar / Deploy</b>.</li>
+        <li>Copia la dirección que te da (termina en <code>.workers.dev</code>), pégala arriba y toca <b>GUARDAR Y PROBAR</b>.</li>
+      </ol>El puente no guarda tu usuario ni tu contraseña: solo deja pasar las consultas de esta página a OpenF1. Solo acepta tu página.</details>
+    </div>
     <div class="card"><h2>ACTUALIZAR TIEMPOS CADA</h2>
       <div class="opt" id="rate" style="padding-top:12px"><button data-r="6">6 s</button><button data-r="8">8 s</button><button data-r="15">15 s</button></div>
-      <div class="txt" style="padding-top:0">Más segundos = menos datos. OpenF1 permite 60 consultas por minuto por cuenta; la página usa máximo 48 y se acomoda sola. Si tienes abierto el programa de la PC con la misma cuenta, usa 15 s. El mapa (GPS) solo consulta mientras estás en MAPA.</div></div>
+      <div class="txt" style="padding-top:0">Fuera de sesión. Durante la sesión los datos llegan al instante solos y casi no gastan consultas. OpenF1 permite 60 consultas por minuto por cuenta (sumando todos tus celulares y la PC); la página usa máximo 48 y se acomoda sola. Con varios celulares a la vez, usa 15 s.</div></div>
     <div class="card"><h2>AVISOS Y PANTALLA</h2>
       <label class="tg"><span>Avisos de bandera<small>Roja, SC, VSC, amarilla doble y cuadros: aviso grande arriba</small></span><input type="checkbox" id="o-alert"></label>
       <label class="tg"><span>Vibrar con los avisos<small>Solo Android</small></span><input type="checkbox" id="o-vib"></label>
       <label class="tg"><span>Avisar mejoras de TU PILOTO<small>Mejor vuelta personal o vuelta más rápida</small></span><input type="checkbox" id="o-me"></label>
-      <label class="tg"><span>Pantalla siempre encendida<small>Mientras esta página esté abierta</small></span><input type="checkbox" id="o-wake"></label>
+      <label class="tg"><span>Pantalla siempre encendida<small>Recomendado en el autódromo: si se bloquea el celular se corta el en vivo</small></span><input type="checkbox" id="o-wake"></label>
     </div>
     <div class="card"><h2>CÓMO SE LEE</h2><div class="txt">
       Morado = lo más rápido de la sesión · Verde = mejor personal · Amarillo = más lento que su mejor.<br>
@@ -309,12 +335,13 @@ body.split{padding-bottom:0}
 
 <div class="sheet hidden" id="sheet"><div class="in" id="sheetin"></div></div>
 <div id="alertbox"></div>
+<div id="updbox"></div>
 <audio id="aud" preload="none"></audio>
 
 <script src="mqtt.min.js"></script>
 <script>
 (() => {
-  const BUILD = "2026-11-04a";
+  const BUILD = "2026-11-05a";
   const API = "https://api.openf1.org";
   const $ = (id) => document.getElementById(id);
   const store = {
@@ -322,15 +349,18 @@ body.split{padding-bottom:0}
     set(k, v) { try { v == null ? localStorage.removeItem("pdmx_" + k) : localStorage.setItem("pdmx_" + k, v); } catch {} },
   };
   const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-  const TOTAL_LAPS = { "Mexico City": 71, "Las Vegas": 50, "Lusail": 57, "Yas Marina Circuit": 58, "Interlagos": 71, "Austin": 56 };
+  // Vueltas de carrera por circuito (nombre corto de OpenF1). OpenF1 no da el total en vivo.
+  const TOTAL_LAPS = { "Melbourne": 58, "Shanghai": 56, "Suzuka": 53, "Sakhir": 57, "Jeddah": 50, "Miami": 57, "Imola": 63, "Montreal": 70, "Monte Carlo": 78, "Monaco": 78, "Catalunya": 66, "Barcelona": 66, "Spielberg": 71, "Silverstone": 52, "Spa-Francorchamps": 44, "Hungaroring": 70, "Zandvoort": 72, "Monza": 53, "Baku": 51, "Singapore": 62, "Marina Bay": 62, "Austin": 56, "Mexico City": 71, "Interlagos": 71, "Sao Paulo": 71, "São Paulo": 71, "Las Vegas": 50, "Lusail": 57, "Yas Marina Circuit": 58, "Yas Marina": 58 };
   const RACE_PTS = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1], SPRINT_PTS = [8, 7, 6, 5, 4, 3, 2, 1];
 
   let cred = { u: store.get("u") || "", p: store.get("p") || "" };
+  // Puente propio (Cloudflare Worker): en vivo OpenF1 no le contesta al navegador; el puente sí.
+  let relay = (store.get("relay") || "").trim().replace(/\/+$/, "");
   let token = null, tokenExp = 0;
   let rate = Math.max(6, +(store.get("rate") || 8));
   let fav = +(store.get("fav") || 0);
   let dens = store.get("dens") || "full";
-  const opt = { alert: store.get("o-alert") !== "0", vib: store.get("o-vib") !== "0", me: store.get("o-me") !== "0", wake: store.get("o-wake") === "1" };
+  const opt = { alert: store.get("o-alert") !== "0", vib: store.get("o-vib") !== "0", me: store.get("o-me") !== "0", wake: store.get("o-wake") !== "0" };
   let view = "tower", lapsScope = "all", rcMode = "rc";
   let S = null;
   const landQ = window.matchMedia("(orientation: landscape) and (max-height: 540px)");
@@ -342,7 +372,13 @@ body.split{padding-bottom:0}
   // ---------- red ----------
   async function getToken() {
     if (token && Date.now() < tokenExp - 120000) return token;
-    const r = await fetch(API + "/token", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: "username=" + encodeURIComponent(cred.u) + "&password=" + encodeURIComponent(cred.p) }).catch((e) => { const er = new Error("red"); er.net = true; er.detail = "token: " + ((e && e.message) || e); throw er; });
+    const body = "username=" + encodeURIComponent(cred.u) + "&password=" + encodeURIComponent(cred.p);
+    let r = null, lastErr = null;
+    for (const base of relay ? [API, relay] : [API]) {
+      try { r = await fetch(base + "/token", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body }); break; }
+      catch (e) { lastErr = e; }
+    }
+    if (!r) { const er = new Error("red"); er.net = true; er.detail = "token: " + ((lastErr && lastErr.message) || lastErr); throw er; }
     if (!r.ok) throw new Error(r.status === 401 || r.status === 400 ? "auth" : "token " + r.status);
     const j = await r.json();
     token = j.access_token; tokenExp = Date.now() + (+j.expires_in || 3600) * 1000;
@@ -367,12 +403,23 @@ body.split{padding-bottom:0}
     const now = Date.now(); win.push(now); nextSlot = now + 250;
   }
   window.__of1 = () => ({ ultimoMinuto: win.length, limite: PER_MIN });
+  let via = ""; // por dónde llegó la última respuesta: "puente" o "directo"
   async function get1(path) {
     await slot();
-    const ac = new AbortController(), to = setTimeout(() => ac.abort(), 15000);
-    try { return await fetch(API + "/v1/" + path, { headers: { Authorization: "Bearer " + (await getToken()) }, signal: ac.signal }); }
-    catch (e) { const er = new Error("red"); er.net = true; er.detail = (e && e.message) || String(e); throw er; }
-    finally { clearTimeout(to); }
+    const tok = await getToken();
+    let lastErr = null;
+    for (const base of relay ? [relay, API] : [API]) {
+      const ac = new AbortController(), to = setTimeout(() => ac.abort(), 15000);
+      try {
+        const r = await fetch(base + "/v1/" + path, { headers: { Authorization: "Bearer " + tok }, signal: ac.signal });
+        // puente mal configurado: se intenta directo
+        if (base !== API && (r.status === 403 || r.status >= 500)) { lastErr = new Error("puente HTTP " + r.status); continue; }
+        via = base === API ? "directo" : "puente";
+        return r;
+      } catch (e) { lastErr = e; }
+      finally { clearTimeout(to); }
+    }
+    const er = new Error("red"); er.net = true; er.detail = (lastErr && lastErr.message) || String(lastErr); throw er;
   }
   async function q(path) {
     let r;
@@ -388,6 +435,51 @@ body.split{padding-bottom:0}
   const K = () => "session_key=" + S.sess.session_key;
   const soft = (p) => p.catch(() => {});
 
+  // ---------- mezcla de datos ----------
+  // REST y MQTT llegan desordenados y repetidos: nunca se pisa un dato con uno más viejo.
+  function setPos(n, pos, date) {
+    if (!n || !pos) return;
+    const at = (S.posAt ||= {}), t = date ? Date.parse(date) : 0;
+    if (t && at[n] && t < at[n]) return;
+    S.pos[n] = pos; if (t) at[n] = t;
+  }
+  function setIntv(n, row) {
+    if (!n || !row) return;
+    const o = S.intv[n];
+    if (o && o.date && row.date && Date.parse(row.date) < Date.parse(o.date)) return;
+    if (o && typeof o.interval === "number" && o.date !== row.date) row._prev = o.interval;
+    S.intv[n] = row;
+  }
+  function mergeLap(n, l) {
+    if (!n || !l || !l.lap_number) return;
+    const m = (S.laps[n] ||= {}), t = (m[l.lap_number] ||= {});
+    for (const k in l) if (l[k] != null) t[k] = l[k]; // un dato vacío no borra uno que ya teníamos
+  }
+  function addRC(m) {
+    if (!m) return false;
+    if (!S.rcSeen) S.rcSeen = new Set(S.rc.map((x) => x.date + "|" + x.message));
+    const k = m.date + "|" + m.message;
+    if (S.rcSeen.has(k)) return false;
+    S.rcSeen.add(k); S.rc.push(m);
+    if (S.rc.length > 1 && S.rc[S.rc.length - 2].date > m.date) S.rc.sort((x, y) => (x.date < y.date ? -1 : 1));
+    return true;
+  }
+  function addWx(w) {
+    if (!w || !w.date) return;
+    if (!S.wxSeen) S.wxSeen = new Set(S.wxAll.map((x) => x.date));
+    if (S.wxSeen.has(w.date)) return;
+    S.wxSeen.add(w.date); S.wxAll.push(w);
+    if (S.wxAll.length > 1 && S.wxAll[S.wxAll.length - 2].date > w.date) S.wxAll.sort((a, b) => (a.date < b.date ? -1 : 1));
+    S.wx = S.wxAll[S.wxAll.length - 1];
+  }
+  function addRadio(r) {
+    if (!r || !r.recording_url) return;
+    if (!S.radSeen) S.radSeen = new Set(S.radios.map((x) => x.recording_url));
+    if (S.radSeen.has(r.recording_url)) return;
+    S.radSeen.add(r.recording_url); S.radios.push(r);
+    if (S.radios.length > 1 && S.radios[S.radios.length - 2].date > r.date) S.radios.sort((a, b) => (a.date < b.date ? -1 : 1));
+  }
+
   // ---------- carga ----------
   // Respaldo de la parrilla 2026 por si OpenF1 no deja bajar la lista en vivo.
   const GRID = [[1,"NOR","Norris","McLaren","FF8000"],[81,"PIA","Piastri","McLaren","FF8000"],[3,"VER","Verstappen","Red Bull Racing","3671C6"],[6,"HAD","Hadjar","Red Bull Racing","3671C6"],[16,"LEC","Leclerc","Ferrari","E8002D"],[44,"HAM","Hamilton","Ferrari","E8002D"],[63,"RUS","Russell","Mercedes","27F4D2"],[12,"ANT","Antonelli","Mercedes","27F4D2"],[11,"PER","Perez","Cadillac","AAAAAA"],[77,"BOT","Bottas","Cadillac","AAAAAA"],[14,"ALO","Alonso","Aston Martin","229971"],[18,"STR","Stroll","Aston Martin","229971"],[10,"GAS","Gasly","Alpine","0093CC"],[43,"COL","Colapinto","Alpine","0093CC"],[23,"ALB","Albon","Williams","64C4FF"],[55,"SAI","Sainz","Williams","64C4FF"],[27,"HUL","Hulkenberg","Audi","00E701"],[5,"BOR","Bortoleto","Audi","00E701"],[31,"OCO","Ocon","Haas F1 Team","B6BABD"],[87,"BEA","Bearman","Haas F1 Team","B6BABD"],[30,"LAW","Lawson","Racing Bulls","6692FF"],[41,"LIN","Lindblad","Racing Bulls","6692FF"]];
@@ -395,12 +487,13 @@ body.split{padding-bottom:0}
   function cacheGet(k) { try { return JSON.parse(localStorage.getItem("pdmx_c_" + k) || "null"); } catch { return null; } }
   function saveState() {
     if (!S || !S.sess || !S.sess.session_key) return;
-    cacheSet("state", { key: S.sess.session_key, at: Date.now(), pos: S.pos, laps: S.laps, rc: S.rc, stints: S.stints, stintAll: S.stintAll, pits: S.pits, wxAll: S.wxAll.slice(-200), radios: S.radios.slice(-60), intv: S.intv });
+    cacheSet("state", { key: S.sess.session_key, at: Date.now(), pos: S.pos, posAt: S.posAt || {}, grid: S.grid, result: S.result || null, laps: S.laps, rc: S.rc, stints: S.stints, stintAll: S.stintAll, pits: S.pits, wxAll: S.wxAll.slice(-200), radios: S.radios.slice(-60), intv: S.intv });
   }
   function loadState() {
     const c = cacheGet("state");
     if (!c || c.key !== S.sess.session_key || Date.now() - c.at > 4 * 3600000) return;
-    Object.assign(S, { pos: c.pos || {}, laps: c.laps || {}, rc: c.rc || [], stints: c.stints || {}, stintAll: c.stintAll || {}, pits: c.pits || {}, wxAll: c.wxAll || [], radios: c.radios || [], intv: c.intv || {} });
+    Object.assign(S, { pos: c.pos || {}, posAt: c.posAt || {}, grid: c.grid || S.grid || {}, result: c.result || null, laps: c.laps || {}, rc: c.rc || [], stints: c.stints || {}, stintAll: c.stintAll || {}, pits: c.pits || {}, wxAll: c.wxAll || [], radios: c.radios || [], intv: c.intv || {} });
+    S.rcSeen = S.wxSeen = S.radSeen = null;
     if (S.wxAll.length) S.wx = S.wxAll[S.wxAll.length - 1];
   }
   setInterval(saveState, 20000);
@@ -423,21 +516,21 @@ body.split{padding-bottom:0}
     if (r.session_key && !S.sess.session_key) { S.sess.session_key = r.session_key; loadState(); }
     if (n && (topic === "laps" || topic === "location" || topic === "intervals")) (S.seenAt ||= {})[n] = Date.now();
     switch (topic) {
-      case "position": S.pos[n] = r.position; break;
+      case "position": setPos(n, r.position, r.date); break;
       case "intervals": {
         if (S.sess.synthetic && !S.sess.session_type) { S.sess.session_type = "Race"; S.sess.session_name = "Race"; }
- const o = S.intv[n]; if (o && typeof o.interval === "number") r._prev = o.interval; S.intv[n] = r; break; }
+ setIntv(n, r); break; }
       case "laps": {
-        const m = (S.laps[n] ||= {}); const before = snapBests();
-        m[r.lap_number] = Object.assign(m[r.lap_number] || {}, r);
+        const before = snapBests();
+        mergeLap(n, r);
         if (r.lap_duration) meAlert(before);
         break;
       }
-      case "race_control": if (!S.rc.some((m) => m.date === r.date && m.message === r.message)) { S.rc.push(r); S.rc.sort((x, y) => (x.date < y.date ? -1 : 1)); flagAlert(r); } break;
+      case "race_control": if (addRC(r)) flagAlert(r); break;
       case "stints": { const a = (S.stintAll[n] ||= []); const i = a.findIndex((x) => x.stint_number === r.stint_number); if (i >= 0) a[i] = Object.assign(a[i], r); else a.push(r); a.sort((x, y) => x.stint_number - y.stint_number); S.stints[n] = a[a.length - 1]; break; }
       case "pit": { const a = (S.pits[n] ||= []); if (!a.some((x) => x.lap_number === r.lap_number)) a.push(r); break; }
-      case "weather": S.wxAll.push(r); S.wx = r; break;
-      case "team_radio": S.radios.push(r); break;
+      case "weather": addWx(r); break;
+      case "team_radio": addRadio(r); break;
       case "drivers": S.drivers[n] = Object.assign(S.drivers[n] || {}, r); break;
       case "sessions": if (r.session_key) { const keep = S.sess.synthetic; S.sess = Object.assign({}, S.sess, r); if (keep) delete S.sess.synthetic; renderHead(); } break;
       case "location": {
@@ -475,30 +568,78 @@ body.split{padding-bottom:0}
       const ch = cacheGet("champ"); if (ch) S.champ = ch;
       loadState(); loadTrackCache(); renderHead(); render();
     }
+    if (S.mode !== "mqtt") {
+      // si veníamos por REST hace un momento, lo que ya hay está completo; si no (entraste con la
+      // sesión empezada y OpenF1 no deja bajar lo anterior), solo cuenta lo que llegue desde ahora
+      if (S.sess.synthetic) S.covered = false;
+      else if (S.lastOk && Date.now() - S.lastOk < 60000 && S.covered !== false) S.covered = true;
+      else S.covered = Date.now() <= Date.parse(S.sess.date_start) + 60000;
+    }
     S.mode = "mqtt"; S.mqStart = S.mqStart || Date.now();
     mq = mqtt.connect("wss://mqtt.openf1.org:8084/mqtt", { username: cred.u, password: tok, clean: true, reconnectPeriod: 3000, connectTimeout: 15000, keepalive: 30 });
-    mq.on("connect", () => { mqTopics.clear(); mqSub(); setStatus("EN VIVO · MQTT", "ok"); $("dbg").textContent = ""; });
-    mq.on("reconnect", async () => { try { mq.options.password = await getToken(); } catch {} setStatus("RECONECTANDO…", "warn"); });
-    mq.on("error", (e) => { $("dbg").textContent = "MQTT: " + ((e && e.message) || e); if (/auth|Not authorized|Bad user/i.test(String(e && e.message))) { token = null; } });
-    clearInterval(S.tokT);
-    S.tokT = setInterval(async () => { try { token = null; mq.options.password = await getToken(); } catch {} }, 45 * 60000);
-    mq.on("message", (topic, buf) => { try { const r = JSON.parse(new TextDecoder().decode(buf)); ingest(topic.replace(/^v1\//, ""), r); } catch {} });
+    mq.on("connect", () => {
+      mqTopics.clear(); mqSub();
+      if (S) {
+        S.mqConnects = (S.mqConnects || 0) + 1;
+        // se cortó y volvió: hay que rellenar lo que pasó mientras tanto
+        if (S.mqConnects > 1 && S.mqDownAt) { S.needFill = true; S.gapMs = Math.max(S.gapMs || 0, Date.now() - S.mqDownAt); }
+        S.mqDownAt = 0;
+      }
+      paintStatus();
+    });
+    mq.on("close", () => { if (S && !S.mqDownAt) S.mqDownAt = Date.now(); paintStatus(); });
+    mq.on("reconnect", async () => { try { mq.options.password = await getToken(); } catch {} });
+    mq.on("error", (e) => { if (/auth|Not authorized|Bad user/i.test(String(e && e.message))) token = null; });
+    clearInterval(startMQTT.tokT);
+    startMQTT.tokT = setInterval(async () => { try { token = null; mq.options.password = await getToken(); } catch {} }, 45 * 60000);
+    mq.on("message", (topic, buf) => { try { if (S) S.mqLast = Date.now(); const r = JSON.parse(new TextDecoder().decode(buf)); ingest(topic.replace(/^v1\//, ""), r); } catch {} });
     return true;
   }
 
-  async function backfill() {
-    if (!S || !S.sess) return;
-    // Una sola consulta de prueba: si OpenF1 sigue cerrando el REST, no gastamos más.
-    const ss = await q("sessions?session_key=latest");
-    if (!ss.length) return;
-    if (S.sess.synthetic || !S.sess.session_key) { S.sess = ss[0]; cacheSet("sess", ss[0]); renderHead(); }
-    else if (ss[0].session_key > S.sess.session_key && new Date(ss[0].date_start).getTime() - 40 * 60000 <= Date.now()) switchTo(ss[0].session_key, ss[0]);
-    const saved = { pos: S.cur.pos, laps: S.cur.laps, rc: S.cur.rc };
-    S.cur.pos = S.cur.laps = S.cur.rc = undefined; // todo desde el inicio
-    await poll(true);
-    if (!Object.keys(S.drivers).length || S.drivers[Object.keys(S.drivers)[0]].session_key === undefined) { try { await loadDrivers(); cacheSet("drivers", S.drivers); } catch {} }
-    $("dbg").textContent = "";
-    void saved;
+  // ¿La sesión está en vivo (o a punto)? Desde 20 min antes hasta 30 min después, o mientras llegan datos.
+  function liveWindow() {
+    if (!S || !S.sess) return false;
+    if (S.sess.synthetic) return true;
+    const now = Date.now();
+    if (S.mqLast && now - S.mqLast < 5 * 60000 && S.lastOk && now - S.lastOk < 5 * 60000) return true;
+    const a = Date.parse(S.sess.date_start), b = Date.parse(S.sess.date_end);
+    return now >= a - 20 * 60000 && now <= b + 30 * 60000;
+  }
+  // ¿Tenemos todo lo que ha pasado en la sesión? (si no, la torre puede estar incompleta)
+  // "covered" = no hay huecos: el REST ya trajo todo y el tiempo real no se ha cortado (o se rellenó).
+  function histComplete() {
+    if (!S) return false;
+    if (S.mode !== "mqtt") return true; // por REST: historial completo
+    return !!S.covered;
+  }
+  const dur = (ms) => (ms < 60000 ? Math.round(ms / 1000) + " s" : Math.round(ms / 60000) + " min");
+  let noteT = 0;
+  function note(msg) { $("note").textContent = msg || ""; clearTimeout(noteT); if (msg) noteT = setTimeout(() => ($("note").textContent = ""), 45000); }
+
+  // Relleno por REST mientras está en vivo: el historial al entrar, lo que pasó mientras el celular
+  // estuvo bloqueado y un repaso cada minuto. OpenF1 directo lo bloquea en vivo; con el puente funciona.
+  async function fill() {
+    S.lastFill = Date.now();
+    try {
+      if (S.histOK === false && !relay) await q("sessions?session_key=latest"); // una consulta de prueba; si falla, no se gasta más
+      if (S.sess.synthetic || !S.sess.date_start) {
+        let ss = S.sess.session_key ? await q("sessions?session_key=" + S.sess.session_key) : [];
+        if (!ss.length) ss = await q("sessions?session_key=latest");
+        if (ss.length) { S.sess = ss[0]; cacheSet("sess", ss[0]); renderHead(); }
+      }
+      await poll(!S.filledOnce);
+      S.filledOnce = true; S.histOK = true; S.needFill = false; S.gapLost = false; S.covered = true;
+      if (S.gapMs > 15000) note("Recuperado lo que pasó mientras no estabas (" + dur(S.gapMs) + ").");
+      S.gapMs = 0;
+    } catch (e) {
+      if (e && e.message === "auth") throw e;
+      S.histOK = false; S.needFill = false;
+      if (S.gapMs > 15000) {
+        S.gapLost = true; S.covered = false;
+        note("Estuviste fuera " + dur(S.gapMs) + ". Sin el puente no se puede recuperar lo que pasó en ese rato (lo nuevo sí llega). Ajustes → PUENTE.");
+      }
+      S.gapMs = 0;
+    }
   }
 
   // La sesión "actual": la última que ya empezó (o empieza en menos de 40 min).
@@ -507,14 +648,16 @@ body.split{padding-bottom:0}
     list = list.filter((s) => !s.is_cancelled).sort((a, b) => new Date(a.date_start) - new Date(b.date_start));
     let pick = null;
     for (const s of list) if (new Date(s.date_start).getTime() - 40 * 60000 <= now) pick = s;
-    return { list, pick: pick || list[list.length - 1] };
+    // nada ha empezado todavía (antes del fin de semana): la próxima sesión, no la última
+    return { list, pick: pick || list.find((s) => Date.parse(s.date_start) > now) || list[list.length - 1] };
   }
   // ¿Ya toca otra sesión? (abriste en la mañana con la qualy y ya va a empezar la carrera)
   let lastSessCheck = 0;
   async function checkSession() {
     if (!S || Date.now() - lastSessCheck < 60000) return false;
     lastSessCheck = Date.now();
-    const { pick } = pickSession(await q("sessions?meeting_key=latest"));
+    // con el calendario del año no hace falta internet (sirve aunque OpenF1 bloquee el REST en vivo)
+    const { pick } = pickSession(S.year && S.year.length > 5 ? S.year : await q("sessions?meeting_key=latest"));
     if (pick && pick.session_key && S.sess.session_key && pick.session_key !== S.sess.session_key) { switchTo(pick.session_key, pick); return true; }
     return false;
   }
@@ -523,11 +666,12 @@ body.split{padding-bottom:0}
     const old = S;
     const found = sessObj || (old.year || []).find((x) => x.session_key === key);
     S = fresh(found || { session_key: key, session_name: "Sesión en vivo", session_type: "", date_start: new Date().toISOString(), date_end: new Date(Date.now() + 2 * 3600000).toISOString(), synthetic: true });
-    S.drivers = old.drivers; S.year = old.year; S.champ = old.champ; S.mode = old.mode; S.mqStart = Date.now(); S.tokT = old.tokT;
+    S.drivers = old.drivers; S.driversFrom = old.driversFrom; S.year = old.year; S.champ = old.champ; S.mode = old.mode; S.mqStart = old.mqStart || Date.now();
+    S.covered = S.mode !== "mqtt" || (!old.gapLost && (S.sess.synthetic ? false : S.mqStart <= Date.parse(S.sess.date_start) + 60000));
     if (!S.sess.circuit_key || S.sess.circuit_key === old.sess.circuit_key) S.track = old.track;
     if (found) cacheSet("sess", found);
     loadState(); if (!S.track) loadTrackCache();
-    if (isRace() && S.mode !== "mqtt") soft(q("starting_grid?" + K()).then((a) => { for (const g of a) S.grid[g.driver_number] = g.position; }));
+    if (isRace()) soft(q("starting_grid?" + K()).then((a) => { for (const g of a) S.grid[g.driver_number] = g.position; }));
     renderHead(); render();
   }
 
@@ -537,6 +681,7 @@ body.split{padding-bottom:0}
     if (!pick) throw new Error("OpenF1 no respondió (puede ser el límite de consultas); reintentando");
     S = fresh(pick);
     S.year = list;
+    S.covered = true;
     cacheSet("sess", pick);
     await loadDrivers();
     if (Object.keys(S.drivers).length) cacheSet("drivers", S.drivers);
@@ -549,9 +694,16 @@ body.split{padding-bottom:0}
   }
 
   async function loadDrivers() {
-    let a = await q("drivers?" + K());
-    if (!a.length && S.sess.meeting_key) a = await q("drivers?meeting_key=" + S.sess.meeting_key);
-    for (const d of a) { const c = S.drivers[d.driver_number]; if (!c || (d.session_key || 0) >= (c.session_key || 0)) S.drivers[d.driver_number] = d; }
+    let a = await q("drivers?" + K()), from = "session";
+    if (!a.length && S.sess.meeting_key) {
+      // OpenF1 aún no publica la lista de esta sesión: la de la última sesión del fin de semana
+      a = await q("drivers?meeting_key=" + S.sess.meeting_key); from = "meeting";
+      const maxK = Math.max(0, ...a.map((d) => d.session_key || 0));
+      a = a.filter((d) => (d.session_key || 0) === maxK);
+    }
+    if (!a.length) return;
+    const m = {}; for (const d of a) m[d.driver_number] = d;
+    S.drivers = m; S.driversFrom = from;
   }
   async function loadChamp() {
     // campeonato tras la última carrera o sprint terminada
@@ -569,23 +721,21 @@ body.split{padding-bottom:0}
     const race = isRace();
     const slow = first || !S.cur.stAt || Date.now() - S.cur.stAt > 45000;
     const jobs = [
-      q("position?" + K() + gt("date", S.cur.pos)).then((a) => { for (const p of a) { S.pos[p.driver_number] = p.position; if (!S.cur.pos || p.date > S.cur.pos) S.cur.pos = p.date; } }),
+      q("position?" + K() + gt("date", S.cur.pos)).then((a) => { for (const p of a) { setPos(p.driver_number, p.position, p.date); if (!S.cur.pos || p.date > S.cur.pos) S.cur.pos = p.date; } }),
       q("laps?" + K() + gt("date_start", S.cur.laps)).then((a) => {
         for (const l of a) {
-          (S.laps[l.driver_number] ||= {})[l.lap_number] = l;
+          mergeLap(l.driver_number, l);
           if (l.date_start && (!S.cur.lapsMax || l.date_start > S.cur.lapsMax)) S.cur.lapsMax = l.date_start;
         }
         if (S.cur.lapsMax) S.cur.laps = new Date(new Date(S.cur.lapsMax).getTime() - 4 * 60000).toISOString();
       }),
       q("race_control?" + K() + gt("date", S.cur.rc)).then((a) => {
-        const seen = new Set(S.rc.map((m) => m.date + m.message));
         const fresh = [];
-        for (const m of a) { if (!seen.has(m.date + m.message)) { S.rc.push(m); fresh.push(m); } if (!S.cur.rc || m.date > S.cur.rc) S.cur.rc = m.date; }
-        S.rc.sort((x, y) => (x.date < y.date ? -1 : 1));
+        for (const m of a) { if (addRC(m)) fresh.push(m); if (!S.cur.rc || m.date > S.cur.rc) S.cur.rc = m.date; }
         if (!first) for (const m of fresh) flagAlert(m);
       }),
     ];
-    if (race) jobs.push(q("intervals?" + K() + gt("date", S.cur.intv)).then((a) => { for (const i of a) { const o = S.intv[i.driver_number]; if (o && typeof o.interval === "number" && o.date !== i.date) i._prev = o.interval; S.intv[i.driver_number] = i; if (!S.cur.intv || i.date > S.cur.intv) S.cur.intv = i.date; } }));
+    if (race) jobs.push(q("intervals?" + K() + gt("date", S.cur.intv)).then((a) => { for (const i of a) { setIntv(i.driver_number, i); if (!S.cur.intv || i.date > S.cur.intv) S.cur.intv = i.date; } }));
     if (slow) {
       S.cur.stAt = Date.now();
       jobs.push(q("stints?" + K()).then((a) => {
@@ -594,10 +744,12 @@ body.split{padding-bottom:0}
         for (const n in S.stintAll) S.stintAll[n].sort((x, y) => x.stint_number - y.stint_number);
       }));
       jobs.push(q("pit?" + K()).then((a) => { S.pits = {}; for (const p of a) (S.pits[p.driver_number] ||= []).push(p); }));
-      jobs.push(q("weather?" + K() + gt("date", S.cur.wx)).then((a) => { for (const w of a) { S.wxAll.push(w); if (!S.cur.wx || w.date > S.cur.wx) S.cur.wx = w.date; } if (S.wxAll.length) S.wx = S.wxAll[S.wxAll.length - 1]; }));
-      jobs.push(soft(q("team_radio?" + K() + gt("date", S.cur.rad)).then((a) => { for (const r of a) { S.radios.push(r); if (!S.cur.rad || r.date > S.cur.rad) S.cur.rad = r.date; } })));
+      jobs.push(q("weather?" + K() + gt("date", S.cur.wx)).then((a) => { for (const w of a) { addWx(w); if (!S.cur.wx || w.date > S.cur.wx) S.cur.wx = w.date; } }));
+      jobs.push(soft(q("team_radio?" + K() + gt("date", S.cur.rad)).then((a) => { for (const r of a) { addRadio(r); if (!S.cur.rad || r.date > S.cur.rad) S.cur.rad = r.date; } })));
+      if (race && !Object.keys(S.grid).length) jobs.push(soft(q("starting_grid?" + K()).then((a) => { for (const g of a) S.grid[g.driver_number] = g.position; })));
+      if (sessionEnded()) jobs.push(soft(loadResult()));
     }
-    if (!Object.keys(S.drivers).length || (slow && Object.keys(S.drivers).length < Object.keys(S.pos).length)) jobs.push(loadDrivers());
+    if (!Object.keys(S.drivers).length || (slow && S.driversFrom !== "session")) jobs.push(loadDrivers());
     const before = snapBests();
     const res = await Promise.allSettled(jobs);
     // Si fallan las 3 básicas (posiciones, vueltas, Race Control) es que OpenF1 cerró el REST: pasamos a MQTT.
@@ -606,6 +758,21 @@ body.split{padding-bottom:0}
     if (!first) meAlert(before);
     if (!S.track && !S.trackBusy) buildTrack();
     render();
+  }
+
+  // Clasificación oficial al terminar (incluye sanciones y abandonos).
+  const chequered = () => S.rc.some((m) => (m.flag || "").toUpperCase() === "CHEQUERED");
+  function sessionEnded() {
+    if (!S || S.sess.synthetic) return false;
+    if (Date.now() > Date.parse(S.sess.date_end)) return true;
+    if (isQuali()) return S.rc.some((m) => m.qualifying_phase === 3 && (m.flag || "").toUpperCase() === "CHEQUERED");
+    return chequered();
+  }
+  async function loadResult() {
+    if (S.result || !sessionEnded() || Date.now() - (S.resTry || 0) < 60000) return;
+    S.resTry = Date.now();
+    const a = await q("session_result?" + K());
+    if (a.length >= 10) { S.result = a; saveState(); }
   }
 
   // ---------- avisos ----------
@@ -641,13 +808,32 @@ body.split{padding-bottom:0}
   async function buildTrack() {
     const cands = [];
     for (const n in S.laps) for (const l of Object.values(S.laps[n])) if (l.lap_duration > 0 && !l.is_pit_out_lap && l.date_start) cands.push(l);
-    if (!cands.length) return;
+    if (!cands.length) return prefetchTrack();
     cands.sort((a, b) => a.lap_duration - b.lap_duration);
     S.trackBusy = true;
     try {
       for (const l of cands.slice(0, 3)) {
         const t0 = new Date(l.date_start), t1 = new Date(t0.getTime() + l.lap_duration * 1000);
         const a = await q(`location?${K()}&driver_number=${l.driver_number}&date>=${encodeURIComponent(t0.toISOString())}&date<=${encodeURIComponent(t1.toISOString())}`);
+        const pts = a.filter((p) => p.x || p.y).map((p) => [p.x, p.y]);
+        if (pts.length > 120) { S.track = prepTrack(pts); store.set("track_" + S.sess.circuit_key, JSON.stringify({ pts })); store.set("track_last", JSON.stringify({ pts })); break; }
+      }
+    } catch {}
+    S.trackBusy = false;
+  }
+  // Mapa listo antes de que empiece: GPS de una vuelta rápida de una sesión anterior en este circuito
+  // (de este fin de semana o del año pasado). Se hace una sola vez y queda guardado en el celular.
+  async function prefetchTrack() {
+    if (!S || S.track || S.trackBusy || S.trackTried || !S.sess.circuit_key) return;
+    S.trackTried = true; S.trackBusy = true;
+    try {
+      let ss = await q("sessions?circuit_key=" + S.sess.circuit_key);
+      ss = ss.filter((x) => Date.parse(x.date_end) < Date.now() - 10 * 60000 && x.session_key !== S.sess.session_key).sort((a, b) => Date.parse(b.date_start) - Date.parse(a.date_start));
+      for (const x of ss.slice(0, 3)) {
+        const laps = (await q(`laps?session_key=${x.session_key}&lap_number=${(x.session_type || "") === "Race" ? 12 : 6}`)).filter((l) => l.lap_duration > 0 && l.date_start && !l.is_pit_out_lap).sort((a, b) => a.lap_duration - b.lap_duration);
+        const l = laps[0]; if (!l) continue;
+        const t0 = new Date(l.date_start), t1 = new Date(t0.getTime() + l.lap_duration * 1000);
+        const a = await q(`location?session_key=${x.session_key}&driver_number=${l.driver_number}&date>=${encodeURIComponent(t0.toISOString())}&date<=${encodeURIComponent(t1.toISOString())}`);
         const pts = a.filter((p) => p.x || p.y).map((p) => [p.x, p.y]);
         if (pts.length > 120) { S.track = prepTrack(pts); store.set("track_" + S.sess.circuit_key, JSON.stringify({ pts })); store.set("track_last", JSON.stringify({ pts })); break; }
       }
@@ -700,7 +886,7 @@ body.split{padding-bottom:0}
   let gpsBusy = false, gpsTimer = null, newestLoc = 0, lagEMA = null;
   async function pollGPS() {
     clearTimeout(gpsTimer);
-    if (!mapOn() || !S || document.hidden) return;
+    if (!mapOn() || !S || document.hidden || S.mode === "mqtt") return;
     if (!gpsBusy) {
       gpsBusy = true;
       try {
@@ -870,8 +1056,8 @@ body.split{padding-bottom:0}
     const now = Date.now(), s = S.sess;
     const start = new Date(s.date_start).getTime(), end = new Date(s.date_end).getTime();
     if (isRace()) {
-      let lap = 0; for (const n in S.laps) for (const l in S.laps[n]) lap = Math.max(lap, +l);
-      const tot = isSprint() ? 0 : TOTAL_LAPS[s.circuit_short_name] || TOTAL_LAPS[s.location] || 0;
+      const { lap, tot } = raceLaps();
+      if (chequered()) return { lab: "FINAL", txt: tot ? `${lap}/${tot}` : String(lap || "—") };
       if (now < start && !lap) return { lab: "EMPIEZA EN", txt: fmtClock(start - now) };
       return { lab: "VUELTA", txt: tot ? `${lap}/${tot}` : String(lap || "—") };
     }
@@ -893,8 +1079,19 @@ body.split{padding-bottom:0}
       const ref = redAt != null ? redAt : now;
       return { lab: "Q" + ph + (redAt != null ? " · PAUSA" : ended ? " · FIN" : ""), txt: ended ? "00:00" : fmtClock(dur[ph - 1] - (ref - ps - paused)) };
     }
+    if (s.synthetic) return { lab: "EN VIVO", txt: "--:--" };
     if (now < start) return { lab: "EMPIEZA EN", txt: fmtClock(start - now) };
+    if (now > end || chequered()) return { lab: "FINALIZADA", txt: "00:00" };
     return { lab: "RESTANTE", txt: fmtClock(end - now) };
+  }
+  // Vuelta actual y total de la carrera (total por circuito; en sprint, por la clasificación final).
+  function raceLaps() {
+    let lap = 0; for (const n in S.laps) for (const l in S.laps[n]) lap = Math.max(lap, +l);
+    const s = S.sess;
+    let tot = isSprint() ? 0 : TOTAL_LAPS[s.circuit_short_name] || TOTAL_LAPS[s.location] || 0;
+    if (!tot && S.result) tot = Math.max(0, ...S.result.map((x) => x.number_of_laps || 0));
+    if (tot && lap > tot) lap = tot;
+    return { lap, tot };
   }
 
   function stats(scope) {
@@ -958,6 +1155,57 @@ body.split{padding-bottom:0}
     return out;
   }
 
+  const alertsReady = () => !!S && (S.filledOnce || S.mode !== "mqtt" || (S.mqStart && Date.now() - S.mqStart > 30000));
+  // Distancia al líder como número (vueltas de diferencia = 1000 s cada una).
+  function gapNum(r) {
+    const g = r.intv && r.intv.gap_to_leader;
+    if (typeof g === "number") return g;
+    if (typeof g === "string") { const m = /(\d+)\s*LAP/i.exec(g); if (m) return 1000 * +m[1]; }
+    return r.intv && r.intv.date && r.pos === 1 ? 0 : null;
+  }
+  const cmpGap = (a, b) => { const ga = gapNum(a), gb = gapNum(b); if (ga != null && gb != null) return ga - gb; if (ga != null) return -1; if (gb != null) return 1; return (a.grid || 99) - (b.grid || 99); };
+  // Carrera: manda la posición oficial de cada auto. A los que no tenemos posición (entraste
+  // con la carrera empezada) se les acomoda en los lugares libres según su distancia al líder.
+  function raceOrder(act) {
+    // los que tienen posición oficial conservan su orden entre ellos (si alguien abandonó, los de atrás suben)
+    const known = act.filter((r) => r.pos >= 1 && r.pos < 99).sort((a, b) => a.pos - b.pos || cmpGap(a, b));
+    const unknown = act.filter((r) => !(r.pos >= 1 && r.pos < 99)).sort(cmpGap);
+    if (!known.length) return unknown;
+    const out = known.slice();
+    for (const u of unknown) {
+      const gu = gapNum(u);
+      let i = out.length;
+      if (gu != null) { const j = out.findIndex((k) => { const gk = gapNum(k); return gk != null && gk > gu; }); if (j >= 0) i = j; }
+      out.splice(i, 0, u);
+    }
+    return out;
+  }
+  // Qualy como la oficial: en Q1 todos por su tiempo de Q1; pasan los 16 mejores; en Q2 esos 16 por su
+  // tiempo de Q2 (los que aún no marcan, en el orden en que pasaron); los eliminados abajo con el tiempo
+  // de la fase en que quedaron fuera (primero los de Q2, luego los de Q1).
+  function qualiOrder(out) {
+    const ps = phaseStarts(), cur = qPhase().ph, del = deletedSet(), pb = {};
+    for (const n in S.laps) for (const l of Object.values(S.laps[n])) {
+      if (!(l.lap_duration > 0) || l.is_pit_out_lap || del.has(n + "|" + fmt(l.lap_duration))) continue;
+      const ph = lapPhase(l, ps), o = (pb[n] ||= {});
+      if (!o[ph] || l.lap_duration < o[ph]) o[ph] = l.lap_duration;
+    }
+    const N = out.length;
+    const by = (ph, list) => list.slice().sort((a, b) => ((pb[a.n] && pb[a.n][ph]) || 1e9) - ((pb[b.n] && pb[b.n][ph]) || 1e9));
+    let alive = out.slice().sort((a, b) => a.pos - b.pos);
+    const elim = [];
+    for (let ph = 1; ph < cur; ph++) {
+      const ranked = by(ph, alive), adv = ph === 1 ? N - 6 : N - 12;
+      const gone = ranked.slice(adv);
+      for (const r of gone) { r.elimPh = ph; r.elimBest = (pb[r.n] && pb[r.n][ph]) || 0; }
+      elim.unshift(gone);
+      alive = ranked.slice(0, adv);
+    }
+    const ordered = [...by(cur, alive), ...elim.flat()];
+    ordered.forEach((r, i) => { r.pos = i + 1; });
+    return ordered;
+  }
+
   function buildRows() {
     const quali = isQuali(), race = isRace();
     const st = stats(quali ? "phase" : "all");
@@ -982,35 +1230,37 @@ body.split{padding-bottom:0}
       for (const r of out) if (ret.has(r.n)) { r.dnf = true; r.tag = "dnf"; }
       // Avisar una vez cuando alguien abandona (no al abrir la página con abandonos viejos).
       if (Object.keys(S.laps).length) {
-        if (S.retSeen) { for (const n of ret) if (!S.retSeen.has(n) && S.drivers[n]) showAlert("ABANDONO · " + dname(S.drivers[n]), "red"); }
+        if (S.retSeen && alertsReady()) { for (const n of ret) if (!S.retSeen.has(n) && S.drivers[n]) showAlert("ABANDONO · " + dname(S.drivers[n]), "red"); }
         S.retSeen = new Set(ret);
       }
-      // Carrera: posición oficial; si falta (abriste ya empezada), se ubica por su distancia al líder.
-      const gapNum = (r) => { const g = r.intv && r.intv.gap_to_leader; if (r.pos === 1) return 0; if (typeof g === "number") return g; if (typeof g === "string") { const m = /(\d+)\s*LAP/i.exec(g); if (m) return 1000 * +m[1]; } return null; };
-      const haveGap = out.filter((r) => gapNum(r) != null).length;
-      if (haveGap >= out.length / 2) {
-        out.sort((a, b) => { const ga = gapNum(a), gb = gapNum(b); if (ga != null && gb != null) return ga - gb || a.pos - b.pos; if (ga != null) return -1; if (gb != null) return 1; return a.pos - b.pos; });
-        out.forEach((r, i) => { if (gapNum(r) != null || r.pos < 99) r.pos = i + 1; });
-      } else out.sort((a, b) => a.pos - b.pos || (a.p.best || 1e9) - (b.p.best || 1e9));
-      // Los que abandonaron van al final (como la clasificación oficial: más vueltas, más arriba).
-      if (ret.size) {
-        const act = out.filter((r) => !r.dnf), dnf = out.filter((r) => r.dnf).sort((a, b) => b.nLaps - a.nLaps);
-        out.length = 0; out.push(...act, ...dnf);
-        let k = 0; for (const r of out) { if (r.dnf || r.pos < 99 || (r.intv && r.intv.gap_to_leader != null)) r.pos = ++k; else ++k; }
-      }
+      const act = raceOrder(out.filter((r) => !r.dnf));
+      const dnf = out.filter((r) => r.dnf).sort((a, b) => b.nLaps - a.nLaps);
+      out.length = 0; out.push(...act, ...dnf);
+      out.forEach((r, i) => { r.pos = i + 1; });
+    }
+    else if (quali && histComplete()) {
+      // Qualy con historial completo: igual que la torre oficial (Q1 → Q2 → Q3 con eliminados por su tiempo de fase)
+      const ordered = qualiOrder(out); out.length = 0; out.push(...ordered);
     }
     else {
-      // Prácticas y qualy: el orden lo da la vuelta más rápida (como la torre oficial).
-      // En Q2/Q3 los que ya quedaron fuera van abajo con su tiempo de la fase en que salieron.
+      // Prácticas (o qualy sin historial completo): el orden lo da la vuelta más rápida.
       const all = quali ? stats("all") : st;
       const ph = quali ? qPhase().ph : 0;
-      const N = out.length, alive = ph === 2 ? N - 6 : ph === 3 ? N - 12 : N;
-      const prevOrder = Object.keys(all.per).filter((n) => all.per[n].best).sort((a, b) => all.per[a].best - all.per[b].best);
       const outOf = new Set(ph > 1 ? out.filter((r) => !r.p.best).map((r) => r.n) : []);
       const k = (r) => (r.p.best ? [0, r.p.best] : outOf.has(r.n) && all.per[r.n]?.best ? [2, all.per[r.n].best] : [1, r.pos]);
       out.sort((a, b) => { const x = k(a), y = k(b); return x[0] - y[0] || x[1] - y[1]; });
       out.forEach((r, i) => { r.pos = i + 1; });
-      void alive; void prevOrder;
+    }
+    // Ya terminó y OpenF1 publicó la clasificación oficial: esa manda (sanciones, abandonos, descalificados).
+    if (S.result && S.result.length >= 10 && (race || quali)) {
+      const res = {}; for (const x of S.result) res[x.driver_number] = x;
+      for (const r of out) {
+        const x = res[r.n]; r.res = x || null;
+        if (race && x && (x.dnf || x.dns || x.dsq)) { r.dnf = true; r.tag = x.dsq ? "dsq" : x.dns ? "dns" : "dnf"; }
+        else if (race && x) { r.dnf = false; if (r.tag === "dnf") r.tag = ""; }
+      }
+      out.sort((a, b) => ((a.res && a.res.position) || 99) - ((b.res && b.res.position) || 99) || b.nLaps - a.nLaps);
+      out.forEach((r, i) => { r.pos = (r.res && r.res.position) || i + 1; });
     }
     return { out, st };
   }
@@ -1022,7 +1272,13 @@ body.split{padding-bottom:0}
   function renderHead() {
     const s = S.sess;
     $("sname").textContent = s.synthetic ? (isQuali() ? "CLASIFICACIÓN" : isRace() ? "CARRERA" : "SESIÓN EN VIVO") : sName(s);
-    $("ssub").textContent = s.synthetic ? "EN VIVO · DATOS DESDE QUE ABRISTE LA PÁGINA" : `${(s.location || s.circuit_short_name || "").toUpperCase()} · ${s.year || ""}`;
+    let sub = s.synthetic ? "EN VIVO · DATOS DESDE QUE ABRISTE LA PÁGINA" : `${(s.location || s.circuit_short_name || "").toUpperCase()} · ${s.year || ""}`;
+    if (!s.synthetic && sessionEnded()) {
+      // ya terminó: cuál sigue y cuándo (hora de tu celular)
+      const nx = (S.year || []).find((x) => Date.parse(x.date_start) > Date.now());
+      if (nx) sub = `${(s.location || "").toUpperCase()} · SIGUE ${sName(nx)} ${new Date(nx.date_start).toLocaleDateString("es-MX", { weekday: "short" }).toUpperCase().replace(".", "")} ${hhmm(nx.date_start)}`;
+    }
+    $("ssub").textContent = sub;
   }
   const dname = (d) => (d ? d.last_name || d.broadcast_name || d.name_acronym || "" : "").toUpperCase();
   const dcol = (n) => "#" + ((S.drivers[n] || {}).team_colour || "888");
@@ -1045,7 +1301,9 @@ body.split{padding-bottom:0}
     }
     if (openN) try { renderSheet(openN); } catch (e) { errs.push("ficha: " + e.message); }
     $("dbg").textContent = errs.length ? "Aviso técnico (mándame captura): " + errs.join(" | ") : "";
-    if (S.lastOk && Date.now() - S.lastOk < rate * 3000 + 10000) setStatus(S.mode === "mqtt" ? "EN VIVO · MQTT" : "EN VIVO", "ok");
+    paintStatus();
+    // aviso de última vuelta
+    if (isRace() && alertsReady() && !S.lastLapShown && !chequered()) { const { lap, tot } = raceLaps(); if (tot && lap >= tot) { S.lastLapShown = true; showAlert("ÚLTIMA VUELTA", "chq"); } }
   }
 
   function renderTower() {
@@ -1056,6 +1314,14 @@ body.split{padding-bottom:0}
     $("hd").innerHTML = race ? "<span>P</span><span></span><span>PILOTO</span><span>INTERV.</span><span>LÍDER</span><span>N</span>" : "<span>P</span><span></span><span>PILOTO</span><span>MEJOR<br>VUELTA</span><span>VS P1<br>↑ ADELANTE</span><span>N</span>";
     const { out, st } = buildRows();
     const pens = race ? penalties() : {};
+    if (race && fav && alertsReady()) {
+      const r = out.find((x) => x.n === fav);
+      if (r && !r.dnf && r.pos < 99 && !r.res) {
+        if (S.favPos && r.pos !== S.favPos && Date.now() - (S.favAlertAt || 0) > 8000) { showAlert(`${dname(r.d)} ${r.pos < S.favPos ? "SUBE" : "BAJA"} A P${r.pos}`, "me"); S.favAlertAt = Date.now(); }
+        if (r.tag === "pit" && S.favPitLap !== r.nLaps) { S.favPitLap = r.nLaps; showAlert(`${dname(r.d)} ENTRA A PITS`, "me"); }
+      }
+      S.favPos = r && !r.dnf && r.pos < 99 ? r.pos : 0;
+    }
     S.rank = {}; for (const r of out) if (r.pos < 99) S.rank[r.n] = r.pos;
     const ob = st.best.lap, N = out.length;
     const ph = quali ? qPhase().ph : 0;
@@ -1068,21 +1334,31 @@ body.split{padding-bottom:0}
       if (quali && ph < 3 && r.pos === safe + 1) h += `<div class="cut">ZONA DE ELIMINACIÓN · Q${ph}${cutT ? ` · CORTE ${fmt(cutT)} (${esc(cutRow.d.name_acronym || "")})` : ""}</div>`;
       if (quali && ph > 1 && r.pos === alive + 1) h += `<div class="cut red">ELIMINADOS</div>`;
       const d = r.d, col = "#" + (d.team_colour || "888");
-      const tg = r.tag === "dnf" ? '<span class="tag dnf">ABANDONO</span>' : r.tag === "pit" ? '<span class="tag pit">BOX</span>' : r.tag === "out" ? '<span class="tag out">OUT</span>' : r.tag === "push" ? '<span class="tag push">PUSH</span>' : "";
+      const tg = r.tag === "dnf" ? '<span class="tag dnf">ABANDONO</span>' : r.tag === "dsq" ? '<span class="tag dnf">DESCALIFICADO</span>' : r.tag === "dns" ? '<span class="tag dnf">NO LARGÓ</span>' : r.tag === "pit" ? '<span class="tag pit">BOX</span>' : r.tag === "out" ? '<span class="tag out">OUT</span>' : r.tag === "push" ? '<span class="tag push">PUSH</span>' : "";
       let a, b, gd = "";
       if (race) {
-        const fv = (v) => (v == null ? "—" : typeof v === "number" ? "+" + v.toFixed(3) : String(v));
+        const fv = (v) => (v == null || (typeof v === "number" && v <= 0) ? "—" : typeof v === "number" ? "+" + v.toFixed(3) : String(v)); // 0 en un no-líder = intervalo viejo tras un rebase
         const iv = r.intv && r.intv.interval, pv = r.intv && r.intv._prev;
         const tr = typeof iv === "number" && typeof pv === "number" && Math.abs(iv - pv) >= 0.05 ? (iv < pv ? '<span style="color:var(--green);font-size:10px"> ▼</span>' : '<span style="color:var(--red);font-size:10px"> ▲</span>') : "";
-        a = r.dnf ? `<div class="v" style="color:#ff6a7f">OUT<small>${fmt(r.lastDone && r.lastDone.lap_duration)}</small></div>`
-          : `<div class="v">${r.pos === 1 ? "LÍDER" : esc(fv(iv)) + tr}<small>${fmt(r.lastDone && r.lastDone.lap_duration)}</small></div>`;
-        b = r.dnf ? `<div class="v">${r.nLaps} V<small>${r.stops} PIT</small></div>`
-          : `<div class="v">${r.pos === 1 ? "—" : esc(fv(r.intv && r.intv.gap_to_leader))}<small>${r.stops} PIT</small></div>`;
+        const out1 = r.tag === "dsq" ? "DSQ" : r.tag === "dns" ? "DNS" : "OUT";
+        a = r.dnf ? `<div class="v" style="color:#ff6a7f">${out1}<small>${fmt(r.lastDone && r.lastDone.lap_duration)}</small></div>`
+          : `<div class="v">${r.pos === 1 ? (r.res ? "GANADOR" : "LÍDER") : esc(fv(iv)) + tr}<small>${fmt(r.lastDone && r.lastDone.lap_duration)}</small></div>`;
+        let gl = r.intv && r.intv.gap_to_leader;
+        if (r.res) { const x = r.res.gap_to_leader; gl = Array.isArray(x) ? x.filter((v) => v != null).pop() : x; }
+        if (typeof gl === "string") gl = gl.replace(/LAPS?/i, (m) => (m.length > 3 ? "VUELTAS" : "VUELTA"));
+        const laps = r.res && r.res.number_of_laps ? r.res.number_of_laps : r.nLaps;
+        b = r.dnf ? `<div class="v">${laps} V<small>${r.stops} PIT</small></div>`
+          : `<div class="v">${r.pos === 1 ? (r.res ? laps + " V" : "—") : esc(fv(gl))}<small>${r.stops} PIT</small></div>`;
         if (r.grid && r.pos < 99 && !r.dnf) { const g = r.grid - r.pos; gd = g > 0 ? `<span class="gd up">▲${g}</span>` : g < 0 ? `<span class="gd dn">▼${-g}</span>` : ""; }
         if (st.best.lapBy === r.n) gd += `<span class="tag push">VR</span>`;
         if (pens[r.n]) gd += `<span class="tag pit">${esc(pens[r.n])}</span>`;
+      } else if (r.elimPh) {
+        // eliminado en una fase anterior: su tiempo de esa fase
+        a = `<div class="v" style="color:var(--mut)">${fmt(r.elimBest)}<small>Q${r.elimPh}</small></div>`;
+        b = `<div class="v" style="color:var(--mut)">—<small>FUERA EN Q${r.elimPh}</small></div>`;
       } else {
-        const lastT = r.lastDone && r.lastDone.lap_duration;
+        const phS = quali ? qPhase().start : null;
+        const lastT = r.lastDone && (!phS || !r.lastDone.date_start || r.lastDone.date_start >= phS) ? r.lastDone.lap_duration : 0;
         const lc = lastT && ob && lastT > ob * 1.3 ? "—" : fmt(lastT);
         const lcls = lastT && r.lastDone === r.p.bestL ? (r.p.best <= ob + 1e-6 ? "ob" : "pb") : "";
         a = `<div class="v ${r.p.best && r.p.best <= ob + 1e-6 ? "ob" : ""}">${fmt(r.p.best)}<small class="${lcls}">${lastT ? "ÚLT " + lc : ""}</small></div>`;
@@ -1229,15 +1505,16 @@ body.split{padding-bottom:0}
     let h = "";
     if (w) {
       const wind = Math.round((w.wind_speed || 0) * 3.6), dir = w.wind_direction || 0;
+      const n1 = (v) => (typeof v === "number" ? v.toFixed(1) : "—");
       h += `<div class="card"><h2>CLIMA EN PISTA <small>${hhmm(w.date)}</small></h2><div class="tiles">
-        <div><small>AIRE</small><b>${w.air_temperature.toFixed(1)}°</b></div>
-        <div><small>PISTA</small><b style="color:var(--orange)">${w.track_temperature.toFixed(1)}°</b></div>
+        <div><small>AIRE</small><b>${n1(w.air_temperature)}°</b></div>
+        <div><small>PISTA</small><b style="color:var(--orange)">${n1(w.track_temperature)}°</b></div>
         <div><small>HUMEDAD</small><b>${Math.round(w.humidity)}<em>%</em></b></div>
         <div><small>VIENTO</small><b>${wind}<em>km/h</em></b></div>
         <div><small>DIRECCIÓN</small><b><svg class="arrow" viewBox="0 0 24 24" style="transform:rotate(${dir + 180}deg)"><path d="M12 2l6 18-6-4-6 4z" fill="currentColor"/></svg>${DIRS[Math.round(dir / 45) % 8]}</b></div>
         <div><small>PRESIÓN</small><b>${Math.round(w.pressure)}<em>mbar</em></b></div>
         <div><small>LLUVIA</small><b style="color:${w.rainfall ? "var(--cyan)" : "var(--green)"}">${w.rainfall ? "SÍ" : "NO"}</b></div>
-        <div><small>PISTA − AIRE</small><b>${(w.track_temperature - w.air_temperature).toFixed(1)}°</b></div>
+        <div><small>PISTA − AIRE</small><b>${n1(w.track_temperature - w.air_temperature)}°</b></div>
         <div><small>TENDENCIA PISTA</small><b>${trend()}</b></div></div></div>`;
       const pts = (k) => S.wxAll.map((x) => [new Date(x.date).getTime(), x[k]]);
       h += `<div class="card"><h2>TEMPERATURA EN LA SESIÓN <small><span style="color:var(--orange)">PISTA</span> · <span style="color:var(--cyan)">AIRE</span></small></h2><div style="padding:8px 8px 4px">${spark([{ pts: pts("track_temperature"), col: "#ff9f1a" }, { pts: pts("air_temperature"), col: "#00d8ff" }], 150)}</div></div>`;
@@ -1353,7 +1630,7 @@ body.split{padding-bottom:0}
     const gap = p.best && st.best.lap ? (p.best - st.best.lap < 0.0005 ? "LA MÁS RÁPIDA" : "+" + (p.best - st.best.lap).toFixed(3)) : "—";
     $("sheetin").style.setProperty("--team", dcol(n));
     $("sheetin").innerHTML = `<div class="sh-h"><div><b>${esc(dname(d))}</b><small>#${n} · ${esc(d.team_name || "")}</small></div><button class="star ${n === fav ? "on" : ""}" id="favbtn">${n === fav ? "★ TU PILOTO" : "☆ MARCAR"}</button><button class="x" id="closeb">CERRAR</button></div>
-      <div class="grid4"><div><small>POSICIÓN</small><b>${S.pos[n] || "—"}</b></div><div><small>MEJOR VUELTA</small><b class="${p.best && p.best <= st.best.lap + 1e-6 ? "ob" : ""}">${fmt(p.best)}</b></div>
+      <div class="grid4"><div><small>POSICIÓN</small><b>${(S.rank && S.rank[n]) || S.pos[n] || "—"}</b></div><div><small>MEJOR VUELTA</small><b class="${p.best && p.best <= st.best.lap + 1e-6 ? "ob" : ""}">${fmt(p.best)}</b></div>
       <div><small>VS. LA MÁS RÁPIDA</small><b>${gap}</b></div><div><small>VUELTA IDEAL</small><b>${fmt(p.ideal)}</b></div>
       <div><small>MEJORES SECTORES</small><b style="font-size:14px">${p.s.map((v, i) => `<span class="${v && v <= st.best.s[i] + 1e-6 ? "ob" : ""}">${fs(v)}</span>`).join(" · ")}</b></div><div><small>VELOCIDAD MÁX.</small><b>${p.st ? p.st + " km/h" : "—"}</b></div>
       <div><small>LLANTA ACTUAL</small><b>${stint ? esc(stint.compound || "") : "—"}</b></div><div><small>VUELTAS · BORRADOS</small><b>${last ? last.lap_number : 0} · ${p.dels}</b></div>
@@ -1379,39 +1656,64 @@ body.split{padding-bottom:0}
   let timer = null, busy = false, fails = 0;
   async function loop() {
     clearTimeout(timer);
-    if (document.hidden) { timer = setTimeout(loop, 2000); return; }
-    if (!busy) {
-      busy = true;
-      try {
-        if (S && S.mode === "mqtt") {
-          // Probamos el REST cada minuto: si OpenF1 ya lo deja (fin de sesión o corte), bajamos TODO lo anterior.
-          try { await backfill(); } catch {}
-          busy = false; timer = setTimeout(loop, 60000); return;
-        }
-        if (!S) await boot();
-        else { if (await checkSession().catch(() => false)) { busy = false; timer = setTimeout(loop, 1000); return; } await poll(false); }
-        fails = 0;
+    if (document.hidden) { timer = setTimeout(loop, 3000); return; }
+    if (busy) { timer = setTimeout(loop, 1500); return; }
+    busy = true;
+    let next = rate * 1000;
+    try {
+      if (!S) { await boot(); if (liveWindow()) next = 300; } // en vivo: arrancar el tiempo real de inmediato
+      else if (await checkSession().catch(() => false)) next = 800;
+      else if (liveWindow() && cred.u && window.mqtt && (mq || (await startMQTT()))) {
+        // EN VIVO: lo instantáneo llega por MQTT; el historial y los huecos se rellenan por REST
+        if (S.needFill || !S.filledOnce || Date.now() - (S.lastFill || 0) > (S.histOK ? 60000 : 90000)) await fill();
+        next = 4000;
+      } else {
+        // fuera de vivo casi nada cambia: se consulta poco para no gastar el límite de tu cuenta
+        await poll(false);
+        const now = Date.now(), a = Date.parse(S.sess.date_start), b = Date.parse(S.sess.date_end);
+        next = now >= a - 30 * 60000 && now <= b + 40 * 60000 ? rate * 1000 : 60000;
       }
-      catch (e) {
-        fails++;
-        if (e.message === "auth") { showLogin("OpenF1 rechazó la cuenta. Revisa usuario y contraseña."); busy = false; return; }
-        if (e.net && cred.u && window.mqtt && !(e.detail || "").startsWith("token")) {
-          const guess = S ? S.sess : null;
-          if (S && !S.mode) { /* ya teníamos datos por REST: seguimos con ellos y vivo por MQTT */ }
-          try { await startMQTT(guess); busy = false; timer = setTimeout(loop, 60000); return; } catch (e2) { $("dbg").textContent = "MQTT: " + (e2.message || e2); }
-        }
-        setStatus(e.net ? "SEÑAL DÉBIL · REINTENTANDO" : "ERROR · " + e.message, "err");
-        $("dbg").textContent = e.net ? "Sin respuesta de OpenF1 (" + (e.detail || "red") + "). Reintentando…" : "Error: " + (e.message || e);
+      fails = 0;
+      if (!S || S.mode !== "mqtt" || S.histOK) $("dbg").textContent = $("dbg").textContent.startsWith("Sin respuesta") ? "" : $("dbg").textContent;
+    } catch (e) {
+      fails++;
+      if (e.message === "auth") { showLogin("OpenF1 rechazó la cuenta. Revisa usuario y contraseña."); busy = false; return; }
+      if (e.net && cred.u && window.mqtt && !(e.detail || "").startsWith("token")) {
+        try {
+          if (await startMQTT(S ? S.sess : null)) { S.histOK = false; busy = false; paintStatus(); timer = setTimeout(loop, liveWindow() ? 4000 : 15000); return; }
+        } catch (e2) { $("dbg").textContent = "MQTT: " + (e2.message || e2); }
       }
-      busy = false;
+      setStatus(e.net ? "SEÑAL DÉBIL · REINTENTANDO" : "ERROR · " + e.message, "err");
+      $("dbg").textContent = e.net ? "Sin respuesta de OpenF1 (" + (e.detail || "red") + "). Reintentando…" : "Error: " + (e.message || e);
+      next = Math.min(30, rate * 2) * 1000;
     }
-    timer = setTimeout(loop, Math.min(30, rate * (fails ? 2 : 1)) * 1000);
+    busy = false;
+    timer = setTimeout(loop, next);
   }
-  setInterval(() => { tickClock(); if (S && S.lastOk && Date.now() - S.lastOk > (S.mode === "mqtt" ? 90000 : rate * 3000 + 10000)) setStatus("SEÑAL LENTA", "warn"); }, 1000);
+  // Estado arriba a la derecha: qué tan completo y al día está lo que ves.
+  function paintStatus() {
+    if (!S) return;
+    const now = Date.now(), age = now - (S.lastOk || 0);
+    if (liveWindow()) {
+      // antes de la luz verde: conectado y esperando (no "en vivo")
+      const pre = !S.sess.synthetic && S.sess.date_start && now < Date.parse(S.sess.date_start);
+      if (S.mode === "mqtt") {
+        if (!mq || !mq.connected) return setStatus("RECONECTANDO…", "warn");
+        return histComplete() ? setStatus(pre ? "CONECTADO" : via === "puente" && S.histOK ? "EN VIVO · PUENTE" : "EN VIVO", "ok") : setStatus("EN VIVO · PARCIAL", "warn");
+      }
+      return age < rate * 3000 + 15000 ? setStatus(pre ? "CONECTADO" : "EN VIVO", "ok") : setStatus("SEÑAL LENTA", "warn");
+    }
+    return age < 3 * 60000 ? setStatus("ACTUALIZADO", "ok") : setStatus("SIN ACTUALIZAR", "warn");
+  }
+  setInterval(() => { tickClock(); paintStatus(); }, 1000);
   setInterval(() => { if (S && view === "info") renderInfo(); }, 15000);
   document.addEventListener("visibilitychange", () => {
-    if (document.hidden) { saveState(); return; }
-    if (cred.u) { loop(); pollGPS(); wake(); if (mq && !mq.connected) try { mq.reconnect(); } catch {} }
+    if (document.hidden) { if (S) S.hiddenAt = Date.now(); saveState(); return; }
+    if (!cred.u) return;
+    // volviste de bloquear el celular o de otra app: rellenar lo que pasó mientras tanto
+    if (S && S.hiddenAt) { const g = Date.now() - S.hiddenAt; S.hiddenAt = 0; if (g > 15000) { S.needFill = true; S.gapMs = Math.max(S.gapMs || 0, g); } }
+    if (mq && !mq.connected) try { mq.reconnect(); } catch {}
+    loop(); pollGPS(); wake();
   });
   window.addEventListener("pagehide", saveState);
 
@@ -1493,6 +1795,35 @@ body.split{padding-bottom:0}
   }
   paintOpts();
   wake();
+  // iPhone a veces solo deja mantener la pantalla encendida después de un toque
+  document.addEventListener("click", () => { if (opt.wake && !wl) wake(); }, { passive: true });
+  // ---------- puente ----------
+  const relaySt = (t, ok) => { const el = $("relay-st"); el.textContent = t; el.className = "txt" + (ok === true ? " okc" : ok === false ? " badc" : ""); el.style.paddingTop = "0"; };
+  function paintRelay() { $("relay").value = relay; $("relay-badge").textContent = relay ? "CONFIGURADO" : "SIN PUENTE"; }
+  paintRelay();
+  $("relay-save").addEventListener("click", async () => {
+    const v = $("relay").value.trim().replace(/\/+$/, "");
+    if (v && !/^https:\/\/[^\s/]+\.[^\s/]+/.test(v)) { relaySt("La dirección debe empezar con https:// (cópiala tal cual de Cloudflare).", false); return; }
+    relay = v; store.set("relay", v || null); paintRelay();
+    if (!v) { relaySt("Puente quitado. La página usa OpenF1 directo."); return; }
+    relaySt("Probando el puente…");
+    try {
+      const tok = await getToken();
+      const r = await fetch(v + "/v1/sessions?session_key=latest", { headers: { Authorization: "Bearer " + tok } });
+      const j = await r.json().catch(() => null);
+      if (r.ok && Array.isArray(j)) {
+        relaySt("✓ Puente funcionando: OpenF1 responde a través de tu puente.", true);
+        if (S) { S.needFill = true; S.histOK = undefined; loop(); }
+      } else relaySt("El puente respondió con error " + r.status + (r.status === 403 ? " (origen no permitido: revisa que pegaste el código completo)." : ". Revisa que pegaste el código completo y le diste Deploy."), false);
+    } catch (e) { relaySt("No se pudo conectar con el puente (" + ((e && e.message) || e) + "). Revisa la dirección.", false); }
+  });
+  $("relay-copy").addEventListener("click", async () => {
+    try {
+      const t = await (await fetch("puente/worker.js", { cache: "no-store" })).text();
+      await navigator.clipboard.writeText(t);
+      relaySt("Código copiado. Pégalo en Cloudflare (paso 4).", true);
+    } catch { relaySt("No se pudo copiar aquí. Ábrelo en julioga120-tech.github.io/pdmx-live./puente/worker.js y cópialo de ahí.", false); }
+  });
   $("ver").textContent = "Versión " + BUILD + " · si la recargas y no cambia, espera 1 minuto (GitHub tarda en actualizar).";
   // Aviso de versión nueva (GitHub guarda la página unos minutos en caché).
   async function checkUpdate() {
@@ -1501,7 +1832,7 @@ body.split{padding-bottom:0}
       const t = await (await fetch("index.html?v=" + Date.now(), { cache: "no-store" })).text();
       const m = /const BUILD = "([^"]+)"/.exec(t);
       if (m && m[1] !== BUILD) {
-        $("alertbox").innerHTML = '<div class="alert me" id="upd" style="cursor:pointer">HAY VERSIÓN NUEVA · TOCA AQUÍ PARA ACTUALIZAR</div>';
+        $("updbox").innerHTML = '<div class="alert me" id="upd">HAY VERSIÓN NUEVA · TOCA AQUÍ PARA ACTUALIZAR</div>';
         $("upd").onclick = () => location.reload();
       }
     } catch {}
