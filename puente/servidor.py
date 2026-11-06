@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Servidor Pure Driving MX (Oracle Cloud gratis): tu página + puente a OpenF1, prendido 24/7.
 
-- Sirve la página (copia al día de GitHub Pages) en la dirección de tu servidor.
+- Sirve las dos páginas desde este servidor: celular (/) y transmisión para OBS (/tv).
 - Puente: durante las sesiones OpenF1 no le contesta al navegador; el servidor sí.
 - Modo nube: tu cuenta de OpenF1 se guarda SOLO aquí (/var/lib/pdmx/config.json, permisos 600).
   Tus celulares y la compu entran con tu CLAVE y reciben un token de OpenF1 que dura máximo 1 hora.
@@ -21,12 +21,11 @@ import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 OPENF1 = os.environ.get("PDMX_OPENF1", "https://api.openf1.org").rstrip("/")
-PAGINA = os.environ.get("PDMX_PAGINA", "https://julioga120-tech.github.io/pdmx-live.").rstrip("/")
 ORIGENES = {"https://julioga120-tech.github.io"}
 DATA = os.environ.get("PDMX_DATA", "/var/lib/pdmx")
 CFG = os.path.join(DATA, "config.json")
 CACHE_DIR = os.path.join(DATA, "pagina")
-WEB_DIR = os.environ.get("PDMX_WEB", "/opt/pdmx/web")   # copia local (de tus zips) por si GitHub no contesta
+WEB_DIR = os.environ.get("PDMX_WEB", "/opt/pdmx/web")   # la página (celular y transmisión) vive aquí
 PORT = int(os.environ.get("PDMX_PORT", "8787"))
 VERSION = "2026-11-05"
 
@@ -194,7 +193,7 @@ class Handler(BaseHTTPRequestHandler):
             return self.json(200, {"servidor": "ok", "version": VERSION, "nube": bool(leer_cfg())})
         if p == "/configurar":
             return self.form()
-        if p in ("/", "/index.html") and not leer_cfg():
+        if p in ("/", "/index.html", "/tv", "/tv.html") and not leer_cfg():
             return self.responder(302, b"", extra={"Location": "/configurar"})
         return self.pagina(p)
 
@@ -299,65 +298,43 @@ class Handler(BaseHTTPRequestHandler):
             tok["t"] = j["access_token"]
             tok["exp"] = time.time() + float(j.get("expires_in") or 3600)
         link = self.propio() + "/#k=" + urllib.parse.quote(clave, safe="")
+        tv = self.propio() + "/tv#k=" + urllib.parse.quote(clave, safe="")
         self.html(200,
                   "<h1 class=ok>✓ Listo, tu servidor funciona</h1>"
                   "<p>Este es tu link. Ábrelo en tu celular, en el de tu hermano o en la compu y entra solo, sin contraseña:</p>"
                   "<code id=l>" + link.replace("&", "&amp;").replace("<", "&lt;") + "</code>"
                   "<button id=s>COMPARTIR MI LINK</button><a class='btn ghost' href='" + link.replace("'", "%27") + "'>ABRIR LA PÁGINA</a>"
+                  "<p style='margin-top:22px'>Link para transmitir (OBS → Fuente Navegador, 1920 × 1080):</p>"
+                  "<code>" + tv.replace("&", "&amp;").replace("<", "&lt;") + "</code>"
                   "<p style='margin-top:16px'><small>Si alguien ve tu link, cambia tu CLAVE aquí mismo (" + self.propio() + "/configurar) y vuelve a compartirlo.</small></p>"
                   "<script>document.getElementById('s').onclick=async()=>{const u=document.getElementById('l').textContent;"
                   "try{if(navigator.share){await navigator.share({title:'Pure Driving MX Live',url:u});return}}catch(e){if(e&&e.name==='AbortError')return}"
                   "try{await navigator.clipboard.writeText(u);document.getElementById('s').textContent='LINK COPIADO ✓'}catch(e){}}</script>")
 
-    # ---------- la página (copia de GitHub Pages, siempre al día) ----------
+    # ---------- la página: se sirve desde este mismo servidor (/opt/pdmx/web) ----------
     def pagina(self, p):
         if p == "/":
             p = "/index.html"
+        if p == "/tv":
+            p = "/tv.html"
         if ".." in p or not re.fullmatch(r"/[A-Za-z0-9._\-/]{1,120}", p):
             return self.responder(404, "No encontrado")
-        now = time.time()
+        f = os.path.join(WEB_DIR, p.strip("/"))
         hit = cache.get(p)
-        if not hit or now - hit[0] > 60:
-            fresh = None
-            try:
-                st, ct, b = pedir(PAGINA + p, None, None, 15)
-                if st == 200:
-                    fresh = (now, ct, b)
-                elif st == 404 and not hit:
-                    return self.responder(404, "No encontrado")
-            except Exception:
-                pass
-            disco = os.path.join(CACHE_DIR, p.strip("/").replace("/", "__"))
-            if fresh:
-                hit = fresh
-                cache[p] = hit
-                try:
-                    os.makedirs(CACHE_DIR, exist_ok=True)
-                    with open(disco + ".tmp", "wb") as fh:
-                        fh.write(json.dumps({"ct": fresh[1]}).encode() + b"\n" + fresh[2])
-                    os.replace(disco + ".tmp", disco)
-                except Exception:
-                    pass
-            elif not hit and os.path.isfile(os.path.join(WEB_DIR, p.strip("/"))):
-                # GitHub no contestó: usa la copia que instalaste con tus zips
-                local = os.path.join(WEB_DIR, p.strip("/"))
-                ct = {".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8",
-                      ".png": "image/png", ".json": "application/json"}.get(os.path.splitext(local)[1], "application/octet-stream")
-                with open(local, "rb") as fh:
-                    hit = (now - 50, ct, fh.read())
-                cache[p] = hit
-            elif not hit:
-                try:  # GitHub no contestó: usa la última copia guardada
-                    with open(disco, "rb") as fh:
-                        meta, b = fh.read().split(b"\n", 1)
-                    hit = (now - 50, json.loads(meta).get("ct", ""), b)
-                    cache[p] = hit
-                except Exception:
-                    return self.responder(502, "La página no está disponible ahorita. Intenta en un minuto.")
+        try:
+            mt = os.path.getmtime(f)
+        except OSError:
+            return self.responder(404, "No encontrado")
+        if not hit or hit[0] != mt:
+            ct = {".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8",
+                  ".png": "image/png", ".json": "application/json", ".svg": "image/svg+xml"}.get(os.path.splitext(f)[1], "application/octet-stream")
+            with open(f, "rb") as fh:
+                hit = (mt, ct, fh.read())
+            cache[p] = hit
         body = hit[2]
         if p == "/index.html":  # la página sabe que está en tu servidor (el puente es este mismo)
             body = body.replace(b"<html lang=\"es\">", b"<html lang=\"es\" data-servidor=\"1\">", 1)
-        self.responder(200, body, hit[1] or "application/octet-stream", {"Cache-Control": "no-cache"})
+        self.responder(200, body, hit[1], {"Cache-Control": "no-cache"})
 
 
 def main():

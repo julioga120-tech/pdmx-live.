@@ -1,7 +1,7 @@
 #!/bin/bash
 # Instala tu servidor Pure Driving MX en Oracle Cloud gratis (Ubuntu, AMD o Ampere).
 # - Página + puente a OpenF1 en https://IP-CON-GUIONES.nip.io (certificado gratis automático).
-# - Se queda prendido 24/7, se reinicia solo y se actualiza solo desde tu GitHub.
+# - Se queda prendido 24/7 y se reinicia solo. Celular en / y transmisión (OBS) en /tv, todo desde tu servidor.
 #
 # Al crear la instancia: pégalo en "Initialization script" (cloud-init), o en cualquier momento:
 #   curl -fsSL https://raw.githubusercontent.com/julioga120-tech/pdmx-live./main/puente/oracle.sh | sudo bash
@@ -105,33 +105,16 @@ NoNewPrivileges=true
 WantedBy=multi-user.target
 EOF
 
-# 5) Se actualiza solo desde tu GitHub (cada hora; solo reinicia si cambió y el código es válido)
-cat > /opt/pdmx/actualizar.sh <<EOF
-#!/bin/bash
-curl -fsSL "$RAW/servidor.py?t=\$(date +%s)" -o /opt/pdmx/servidor.py.new || exit 0
-if python3 -m py_compile /opt/pdmx/servidor.py.new && ! cmp -s /opt/pdmx/servidor.py.new /opt/pdmx/servidor.py; then
-  mv /opt/pdmx/servidor.py.new /opt/pdmx/servidor.py && systemctl restart pdmx
-else
-  rm -f /opt/pdmx/servidor.py.new
+# 5) Todo vive en tu servidor: sin actualizaciones automáticas (para actualizar, vuelve a correr el instalador del zip nuevo)
+systemctl disable --now pdmx-actualizar.timer >/dev/null 2>&1 || true
+rm -f /etc/systemd/system/pdmx-actualizar.timer /etc/systemd/system/pdmx-actualizar.service /opt/pdmx/actualizar.sh
+if [ ! -f /opt/pdmx/web/index.html ]; then  # instalado sin zip: baja la página una sola vez
+  mkdir -p /opt/pdmx/web/tv
+  for f in index.html tv.html mqtt.min.js manifest.json logo.png helmet.png icon-180.png icon-192.png icon-512.png tv/app.js tv/style.css; do
+    curl -fsSL "https://raw.githubusercontent.com/julioga120-tech/pdmx-live./main/$f" -o "/opt/pdmx/web/$f" || log "No pude bajar $f"
+  done
+  chmod -R a+rX /opt/pdmx/web
 fi
-EOF
-chmod 755 /opt/pdmx/actualizar.sh
-cat > /etc/systemd/system/pdmx-actualizar.service <<'EOF'
-[Unit]
-Description=Actualiza el servidor Pure Driving MX desde GitHub
-[Service]
-Type=oneshot
-ExecStart=/opt/pdmx/actualizar.sh
-EOF
-cat > /etc/systemd/system/pdmx-actualizar.timer <<'EOF'
-[Unit]
-Description=Actualiza el servidor Pure Driving MX cada hora
-[Timer]
-OnBootSec=10min
-OnUnitActiveSec=1h
-[Install]
-WantedBy=timers.target
-EOF
 
 # 6) Caddy: tu sitio en su propio archivo (así puedes agregar otros sitios para tus agentes)
 cat > /etc/caddy/pdmx.caddy <<EOF
@@ -150,12 +133,11 @@ elif ! grep -Eq 'import /etc/caddy/(\*|pdmx)\.caddy' /etc/caddy/Caddyfile; then
 fi
 
 systemctl daemon-reload
-systemctl enable pdmx caddy pdmx-actualizar.timer >/dev/null 2>&1
+systemctl enable pdmx caddy >/dev/null 2>&1
 systemctl restart pdmx
 systemctl restart caddy
-systemctl start pdmx-actualizar.timer
 echo "https://$H1" > /var/lib/pdmx/link.txt
 
 # 7) Avisar (el certificado llega solo en 1 a 15 minutos, cuando los puertos 80 y 443 estén abiertos en Oracle)
-MSG="Abre https://$H1 en tu celular para configurarlo (si no abre: https://$H2)."
+MSG="Configúralo en https://$H1 (si no abre: https://$H2). Celular: https://$H1  ·  Transmisión OBS: https://$H1/tv"
 printf '\n==== SERVIDOR PURE DRIVING MX ====\n%s\n==================================\n' "$MSG" | tee /etc/motd
