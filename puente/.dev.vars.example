@@ -1,0 +1,3 @@
+OPENF1_USER=TU_USUARIO_O_CORREO_DE_OPENF1 # Tu usuario de OpenF1 (se guarda cifrado en tu Cloudflare)
+OPENF1_PASS=TU_CONTRASEÑA_DE_OPENF1 # Tu contraseña de OpenF1 (se guarda cifrada; nunca llega a tus dispositivos)
+CLAVE=INVENTA_UNA_CLAVE # Una clave que tú inventes, 6 o más letras o números: con ella entran tus dispositivos

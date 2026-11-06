@@ -240,6 +240,17 @@ details.how ol{padding-left:20px}
 details.how li{margin:4px 0}
 details.how code{color:var(--cyan)}
 .okc{color:var(--green)!important}.badc{color:#ff8a9b!important}
+.login details summary{cursor:pointer;font-weight:800;color:var(--cyan);letter-spacing:.6px;padding:18px 0 2px}
+.login details p{margin:8px 0 0}
+pre.code{white-space:pre-wrap;word-break:break-all;background:#0d1520;border:1px solid #233246;border-radius:6px;padding:10px;margin:8px 0;color:var(--cyan);font-size:12.5px;line-height:1.4}
+.fld:disabled{opacity:.7}
+/* compu (pantalla grande): torre y mapa lado a lado */
+@media (min-width:1000px) and (min-height:560px){
+  body.split main{grid-template-columns:minmax(0,620px) minmax(0,1fr)}
+  .pad,#v-rc{max-width:820px;margin-left:auto;margin-right:auto}
+  .sheet{justify-content:center}.sheet .in{max-width:660px}
+  .alert{left:50%;right:auto;width:640px;transform:translateX(-50%)}
+}
 .hidden{display:none!important}
 </style>
 </head>
@@ -259,11 +270,19 @@ details.how code{color:var(--cyan)}
 
 <main>
   <section id="v-login" class="login hidden">
-    <h1>Entrar con OpenF1</h1>
-    <p>En sesión en vivo OpenF1 solo da datos con tu cuenta de patrocinador. Se guarda solo en este celular.</p>
-    <label>USUARIO O CORREO</label><input id="u" autocomplete="username" autocapitalize="none" spellcheck="false">
-    <label>CONTRASEÑA</label><input id="pw" type="password" autocomplete="current-password">
-    <button class="btn" id="go">ENTRAR</button>
+    <h1>Entrar</h1>
+    <div id="l-k" class="hidden">
+      <p>Escribe tu <b>CLAVE</b> (la que inventaste al crear tu servidor), o abre tu link en este dispositivo y entra solo.</p>
+      <label>CLAVE</label><input id="kk" type="password" autocomplete="off" autocapitalize="none" spellcheck="false">
+      <button class="btn" id="go-k">ENTRAR</button>
+    </div>
+    <details id="l-cls" open>
+      <summary>ENTRAR CON TU CUENTA DE OPENF1</summary>
+      <p>Cuenta de patrocinador; se guarda solo en este dispositivo. Si ya tienes tu servidor, mejor abre tu link: entra solo y sin contraseña.</p>
+      <label>USUARIO O CORREO</label><input id="u" autocomplete="username" autocapitalize="none" spellcheck="false">
+      <label>CONTRASEÑA</label><input id="pw" type="password" autocomplete="current-password">
+      <button class="btn" id="go">ENTRAR</button>
+    </details>
     <div class="err" id="lerr"></div>
   </section>
 
@@ -290,20 +309,27 @@ details.how code{color:var(--cyan)}
   </section>
 
   <section id="v-set" class="pad hidden">
-    <div class="card"><h2>PUENTE · DATOS COMPLETOS EN VIVO <small id="relay-badge">SIN PUENTE</small></h2>
-      <div class="txt">Durante la sesión OpenF1 no deja que el navegador baje lo que ya pasó. Con tu puente (gratis, se hace una vez en 5 minutos) ves <b>todo</b> aunque entres tarde o bloquees el celular, y el reloj de qualy sale exacto. Sin puente la página sigue funcionando, pero solo con lo que llegue desde que la abres.</div>
-      <div style="padding:0 12px 4px"><input class="fld" id="relay" placeholder="https://pdmx-puente.TU-USUARIO.workers.dev" autocapitalize="none" spellcheck="false" inputmode="url"></div>
-      <div style="padding:0 12px"><a class="btn" style="display:block;text-align:center;text-decoration:none;margin-top:8px" target="_blank" rel="noopener" href="https://deploy.workers.cloudflare.com/?url=https://github.com/julioga120-tech/pdmx-live./tree/main/puente">1 · CREAR MI PUENTE EN CLOUDFLARE</a></div>
-      <div class="txt" style="padding-bottom:4px">2 · Cuando termine, copia la dirección que te da (termina en <b>.workers.dev</b>) y pégala aquí:</div>
-      <div class="opt" style="padding-top:8px"><button id="relay-save">GUARDAR Y PROBAR</button><button id="relay-copy">COPIAR CÓDIGO</button></div>
+    <div class="card"><h2>TU SERVIDOR · TODO EN VIVO Y UN LINK PARA TODO <small id="relay-badge">SIN SERVIDOR</small></h2>
+      <div class="txt">Con tu servidor gratis (Oracle o Cloudflare, prendido 24/7, sin tu computadora) ves <b>todo</b> en vivo aunque entres tarde o bloquees el celular, y tus celulares y la compu entran con tu link, sin contraseña. Tu contraseña de OpenF1 se guarda solo en tu servidor.</div>
+      <div style="padding:0 12px 6px"><input class="fld" id="relay" placeholder="https://129-146-10-20.nip.io" autocapitalize="none" spellcheck="false" inputmode="url"></div>
+      <div style="padding:0 12px 4px"><input class="fld" id="clave" type="password" placeholder="Tu CLAVE" autocomplete="off" autocapitalize="none" spellcheck="false"></div>
+      <div class="opt" style="padding-top:8px"><button id="relay-save">GUARDAR Y PROBAR</button><button id="link-copy">COMPARTIR MI LINK</button></div>
       <div class="txt" id="relay-st" style="padding-top:0">—</div>
-      <details class="how"><summary>SI EL BOTÓN NO FUNCIONA: HAZLO A MANO (5 MIN)</summary><ol>
-        <li>En la compu o el celular entra a <b>dash.cloudflare.com</b> y crea tu cuenta gratis (correo y contraseña).</li>
-        <li>Ve a <b>Workers y Pages</b> → <b>Crear</b> → <b>Worker</b> (el de “Hello World”). Ponle de nombre <code>pdmx-puente</code> y dale <b>Implementar / Deploy</b>.</li>
-        <li>Abre <b>Editar código</b>, borra todo lo que trae.</li>
-        <li>Aquí toca <b>COPIAR CÓDIGO</b>, pégalo allá y dale <b>Implementar / Deploy</b>.</li>
-        <li>Copia la dirección que te da (termina en <code>.workers.dev</code>), pégala arriba y toca <b>GUARDAR Y PROBAR</b>.</li>
-      </ol>El puente no guarda tu usuario ni tu contraseña: solo deja pasar las consultas de esta página a OpenF1. Solo acepta tu página.</details>
+      <details class="how"><summary>CREAR MI SERVIDOR GRATIS EN ORACLE (15 MIN)</summary><ol>
+        <li>Crea tu cuenta en <b>cloud.oracle.com</b> (Free Tier).</li>
+        <li><b>Compute → Instances → Create instance</b>. Imagen: <b>Ubuntu</b>. Forma: <b>VM.Standard.E2.1.Micro</b>, o <b>Ampere A1</b> con máximo 2 OCPU y 12 GB (las dos son Always Free).</li>
+        <li>En <b>Advanced options → Management → Paste cloud-init script</b> pega esto y dale <b>Create</b>:</li>
+      </ol><pre class="code" id="ci">#!/bin/bash
+curl -fsSL --retry 5 --retry-delay 5 https://raw.githubusercontent.com/julioga120-tech/pdmx-live./main/puente/oracle.sh | bash</pre><div class="opt" style="padding:0 0 8px"><button id="ci-copy">COPIAR SCRIPT</button></div><ol start="4">
+        <li>En tu instancia: <b>Subnet → Security List → Add Ingress Rules</b>: Source CIDR <code>0.0.0.0/0</code>, puerto destino <code>80,443</code>.</li>
+        <li>Con tu <b>Public IP</b> (ej. 129.146.10.20) abre <b>https://129-146-10-20.nip.io</b> (puntos por guiones). Escribe tu cuenta de OpenF1 e inventa tu CLAVE. La primera vez tarda de 5 a 15 min en abrir.</li>
+        <li>Te da tu link: ábrelo en cualquier celular o en la compu y entra solo.</li>
+      </ol></details>
+      <details class="how"><summary>O EN CLOUDFLARE (SIN TARJETA)</summary><ol>
+        <li>Toca el botón y crea tu cuenta gratis. Donde pide <code>OPENF1_USER</code>, <code>OPENF1_PASS</code> y <code>CLAVE</code> pon tu usuario y contraseña de OpenF1 y una clave que inventes.</li>
+        <li>Pega arriba la dirección que te da (termina en <code>.workers.dev</code>) y tu CLAVE, y toca <b>GUARDAR Y PROBAR</b>.</li>
+      </ol><a class="btn" style="display:block;text-align:center;text-decoration:none;margin:4px 0 10px" target="_blank" rel="noopener" href="https://deploy.workers.cloudflare.com/?url=https://github.com/julioga120-tech/pdmx-live./tree/main/puente">CREAR MI PUENTE EN CLOUDFLARE</a>
+      Si el botón falla: en <b>dash.cloudflare.com</b> → Workers y Pages → Crear → Worker → Editar código, pega el código (botón de abajo) y dale Implementar; luego en Configuración → Variables y secretos agrega los 3 secretos.<div class="opt" style="padding:8px 0 0"><button id="relay-copy">COPIAR CÓDIGO</button></div></details>
     </div>
     <div class="card"><h2>ACTUALIZAR TIEMPOS CADA</h2>
       <div class="opt" id="rate" style="padding-top:12px"><button data-r="6">6 s</button><button data-r="8">8 s</button><button data-r="15">15 s</button></div>
@@ -320,7 +346,7 @@ details.how code{color:var(--cyan)}
       Toca un piloto (en torre, mapa, vueltas o mundial) para ver su ficha completa y marcarlo como TU PILOTO.</div></div>
     <div class="card"><h2>RELOJ</h2><div class="txt">Se calcula con la hora de la sesión y Race Control (en qualy se pausa con bandera roja). Puede variar unos segundos contra la tele.</div></div>
     <div class="card"><h2>VERSIÓN</h2><div class="txt" id="ver">—</div></div>
-    <div class="card"><h2>CUENTA</h2><div class="txt" id="acct">—</div><div style="padding:0 12px 12px"><button class="btn ghost" id="logout">SALIR Y BORRAR CUENTA DE ESTE CELULAR</button></div></div>
+    <div class="card"><h2>CUENTA</h2><div class="txt" id="acct">—</div><div style="padding:0 12px 12px"><button class="btn ghost" id="logout">SALIR DE ESTE DISPOSITIVO</button></div></div>
   </section>
 </main>
 
@@ -341,21 +367,35 @@ details.how code{color:var(--cyan)}
 <script src="mqtt.min.js"></script>
 <script>
 (() => {
-  const BUILD = "2026-11-05a";
+  const BUILD = "2026-11-05b";
   const API = "https://api.openf1.org";
   const $ = (id) => document.getElementById(id);
   const store = {
     get(k) { try { return localStorage.getItem("pdmx_" + k); } catch { return null; } },
     set(k, v) { try { v == null ? localStorage.removeItem("pdmx_" + k) : localStorage.setItem("pdmx_" + k, v); } catch {} },
   };
+  // Tu link (#k=CLAVE, y #p=SERVIDOR si abres la página de GitHub): configura este dispositivo solo y se borra de la barra.
+  try {
+    const h = new URLSearchParams(location.hash.slice(1)), lp = (h.get("p") || "").trim(), lk = (h.get("k") || "").trim();
+    if (lp) store.set("relay", (/^https?:\/\//i.test(lp) ? lp : "https://" + lp).replace(/\/+$/, ""));
+    if (lk) store.set("clave", lk);
+    if (lp || lk) history.replaceState(null, "", location.pathname + location.search);
+  } catch {}
   const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   // Vueltas de carrera por circuito (nombre corto de OpenF1). OpenF1 no da el total en vivo.
   const TOTAL_LAPS = { "Melbourne": 58, "Shanghai": 56, "Suzuka": 53, "Sakhir": 57, "Jeddah": 50, "Miami": 57, "Imola": 63, "Montreal": 70, "Monte Carlo": 78, "Monaco": 78, "Catalunya": 66, "Barcelona": 66, "Spielberg": 71, "Silverstone": 52, "Spa-Francorchamps": 44, "Hungaroring": 70, "Zandvoort": 72, "Monza": 53, "Baku": 51, "Singapore": 62, "Marina Bay": 62, "Austin": 56, "Mexico City": 71, "Interlagos": 71, "Sao Paulo": 71, "São Paulo": 71, "Las Vegas": 50, "Lusail": 57, "Yas Marina Circuit": 58, "Yas Marina": 58 };
   const RACE_PTS = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1], SPRINT_PTS = [8, 7, 6, 5, 4, 3, 2, 1];
 
   let cred = { u: store.get("u") || "", p: store.get("p") || "" };
-  // Puente propio (Cloudflare Worker): en vivo OpenF1 no le contesta al navegador; el puente sí.
-  let relay = (store.get("relay") || "").trim().replace(/\/+$/, "");
+  // Tu servidor (Oracle) o tu puente (Cloudflare): en vivo OpenF1 no le contesta al navegador; tu servidor sí.
+  // Si la página viene de tu propio servidor, ese mismo servidor es el puente.
+  const OWN = document.documentElement.dataset.servidor === "1" ? location.origin : "";
+  let relay = OWN || (store.get("relay") || "").trim().replace(/\/+$/, "");
+  // Modo nube: tu cuenta de OpenF1 vive en tu servidor; este dispositivo solo guarda tu CLAVE.
+  let clave = store.get("clave") || "";
+  let mqUser = "", nubeErr = "";
+  const nube = () => !!(relay && clave);
+  const authed = () => !!(cred.u && cred.p) || nube();
   let token = null, tokenExp = 0;
   let rate = Math.max(6, +(store.get("rate") || 8));
   let fav = +(store.get("fav") || 0);
@@ -364,14 +404,26 @@ details.how code{color:var(--cyan)}
   let view = "tower", lapsScope = "all", rcMode = "rc";
   let S = null;
   const landQ = window.matchMedia("(orientation: landscape) and (max-height: 540px)");
-  const isSplit = () => landQ.matches && (view === "tower" || view === "map");
+  const deskQ = window.matchMedia("(min-width: 1000px) and (min-height: 560px)"); // compu: torre y mapa lado a lado
+  const isSplit = () => (landQ.matches || deskQ.matches) && (view === "tower" || view === "map");
   const mapOn = () => view === "map" || isSplit();
 
   const fresh = (sess) => ({ sess, wx: null, wxAll: [], drivers: {}, pos: {}, grid: {}, intv: {}, laps: {}, stints: {}, stintAll: {}, rc: [], radios: [], pits: {}, loc: {}, track: null, year: [], champ: null, cur: {} });
 
   // ---------- red ----------
+  const NUBE_MSG = {
+    clave: "Tu CLAVE no coincide con la de tu servidor (¿la cambiaste?). Escríbela de nuevo o abre tu link nuevo.",
+    "sin-nube": "Tu servidor todavía no tiene guardada tu cuenta de OpenF1 (configúralo primero) o es la versión vieja del puente.",
+    "cuenta-nube": "OpenF1 rechazó la cuenta guardada en tu servidor. Vuelve a escribirla en tu servidor (/configurar).",
+    espera: "Demasiados intentos con clave equivocada. Espera 15 minutos.",
+    origen: "Tu servidor no acepta esta página. Abre tu link de nuevo.",
+  };
   async function getToken() {
     if (token && Date.now() < tokenExp - 120000) return token;
+    if (nube()) {
+      try { return await tokenNube(); }
+      catch (e) { if (!(cred.u && cred.p)) throw e; nubeErr = e.message; } // respaldo: la cuenta guardada en este dispositivo
+    }
     const body = "username=" + encodeURIComponent(cred.u) + "&password=" + encodeURIComponent(cred.p);
     let r = null, lastErr = null;
     for (const base of relay ? [API, relay] : [API]) {
@@ -381,8 +433,26 @@ details.how code{color:var(--cyan)}
     if (!r) { const er = new Error("red"); er.net = true; er.detail = "token: " + ((lastErr && lastErr.message) || lastErr); throw er; }
     if (!r.ok) throw new Error(r.status === 401 || r.status === 400 ? "auth" : "token " + r.status);
     const j = await r.json();
-    token = j.access_token; tokenExp = Date.now() + (+j.expires_in || 3600) * 1000;
+    token = j.access_token; tokenExp = Date.now() + (+j.expires_in || 3600) * 1000; mqUser = cred.u;
     return token;
+  }
+  // Modo nube: a tu servidor solo va tu CLAVE; regresa un token de OpenF1 que dura máximo 1 hora.
+  async function tokenNube() {
+    let r;
+    try { r = await fetch(relay + "/token", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: "clave=" + encodeURIComponent(clave) }); }
+    catch (e) { const er = new Error("red"); er.net = true; er.detail = "token: " + ((e && e.message) || e); throw er; }
+    const j = await r.json().catch(() => ({}));
+    if (r.ok && j.access_token) {
+      token = j.access_token; tokenExp = Date.now() + (+j.expires_in || 3600) * 1000;
+      mqUser = j.username || mqUser; nubeErr = "";
+      try { paintOpts(); } catch {}
+      return token;
+    }
+    const code = { clave: "clave", "sin-nube": "sin-nube", cuenta: "cuenta-nube", espera: "espera" }[j.error];
+    if (code) throw new Error(code);
+    if (r.status === 403) throw new Error("origen");
+    if (r.status >= 400 && r.status < 500) throw new Error("sin-nube"); // puente viejo sin modo nube
+    const er = new Error("red"); er.net = true; er.detail = "token: servidor HTTP " + r.status; throw er;
   }
   // Cola: máximo ~4 peticiones por segundo (OpenF1 corta si te pasas y en señal mala
   // conviene no saturar). Cada petición tiene límite de 15 s y un reintento.
@@ -576,7 +646,7 @@ details.how code{color:var(--cyan)}
       else S.covered = Date.now() <= Date.parse(S.sess.date_start) + 60000;
     }
     S.mode = "mqtt"; S.mqStart = S.mqStart || Date.now();
-    mq = mqtt.connect("wss://mqtt.openf1.org:8084/mqtt", { username: cred.u, password: tok, clean: true, reconnectPeriod: 3000, connectTimeout: 15000, keepalive: 30 });
+    mq = mqtt.connect("wss://mqtt.openf1.org:8084/mqtt", { username: mqUser || cred.u, password: tok, clean: true, reconnectPeriod: 3000, connectTimeout: 15000, keepalive: 30 });
     mq.on("connect", () => {
       mqTopics.clear(); mqSub();
       if (S) {
@@ -1663,7 +1733,7 @@ details.how code{color:var(--cyan)}
     try {
       if (!S) { await boot(); if (liveWindow()) next = 300; } // en vivo: arrancar el tiempo real de inmediato
       else if (await checkSession().catch(() => false)) next = 800;
-      else if (liveWindow() && cred.u && window.mqtt && (mq || (await startMQTT()))) {
+      else if (liveWindow() && authed() && window.mqtt && (mq || (await startMQTT()))) {
         // EN VIVO: lo instantáneo llega por MQTT; el historial y los huecos se rellenan por REST
         if (S.needFill || !S.filledOnce || Date.now() - (S.lastFill || 0) > (S.histOK ? 60000 : 90000)) await fill();
         next = 4000;
@@ -1678,7 +1748,11 @@ details.how code{color:var(--cyan)}
     } catch (e) {
       fails++;
       if (e.message === "auth") { showLogin("OpenF1 rechazó la cuenta. Revisa usuario y contraseña."); busy = false; return; }
-      if (e.net && cred.u && window.mqtt && !(e.detail || "").startsWith("token")) {
+      if (NUBE_MSG[e.message]) {
+        if (e.message === "cuenta-nube") { setStatus("REVISA TU SERVIDOR", "err"); $("dbg").textContent = NUBE_MSG[e.message]; busy = false; timer = setTimeout(loop, 60000); return; }
+        clave = ""; store.set("clave", null); token = null; showLogin(NUBE_MSG[e.message]); busy = false; return;
+      }
+      if (e.net && authed() && window.mqtt && !(e.detail || "").startsWith("token")) {
         try {
           if (await startMQTT(S ? S.sess : null)) { S.histOK = false; busy = false; paintStatus(); timer = setTimeout(loop, liveWindow() ? 4000 : 15000); return; }
         } catch (e2) { $("dbg").textContent = "MQTT: " + (e2.message || e2); }
@@ -1709,7 +1783,7 @@ details.how code{color:var(--cyan)}
   setInterval(() => { if (S && view === "info") renderInfo(); }, 15000);
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) { if (S) S.hiddenAt = Date.now(); saveState(); return; }
-    if (!cred.u) return;
+    if (!authed()) return;
     // volviste de bloquear el celular o de otra app: rellenar lo que pasó mientras tanto
     if (S && S.hiddenAt) { const g = Date.now() - S.hiddenAt; S.hiddenAt = 0; if (g > 15000) { S.needFill = true; S.gapMs = Math.max(S.gapMs || 0, g); } }
     if (mq && !mq.connected) try { mq.reconnect(); } catch {}
@@ -1727,7 +1801,7 @@ details.how code{color:var(--cyan)}
       document.documentElement.style.setProperty("--mainH", (window.innerHeight - hh - th) + "px");
     }
   }
-  landQ.addEventListener ? landQ.addEventListener("change", () => { show(view); }) : landQ.addListener(() => show(view));
+  for (const q of [landQ, deskQ]) q.addEventListener ? q.addEventListener("change", () => show(view)) : q.addListener(() => show(view));
   window.addEventListener("resize", () => layout());
   function show(v) {
     view = v;
@@ -1742,11 +1816,12 @@ details.how code{color:var(--cyan)}
     $("v-login").classList.remove("hidden");
     for (const x of VIEWS) $("v-" + x).classList.add("hidden");
     $("tabs").classList.add("hidden");
-    $("lerr").textContent = msg || ""; $("u").value = cred.u;
-    setStatus("SIN CUENTA", "err");
+    $("l-k").classList.toggle("hidden", !relay); $("l-cls").open = !relay;
+    $("lerr").textContent = msg || ""; $("u").value = store.get("u") || "";
+    setStatus(relay ? "FALTA TU CLAVE" : "SIN CUENTA", "err");
   }
   $("tabs").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) show(b.dataset.v); });
-  $("gear").addEventListener("click", () => { if (cred.u) show(view === "set" ? "tower" : "set"); });
+  $("gear").addEventListener("click", () => { if (authed()) show(view === "set" ? "tower" : "set"); });
   $("fsb").addEventListener("click", async () => {
     const d = document, el = d.documentElement;
     try {
@@ -1785,13 +1860,35 @@ details.how code{color:var(--cyan)}
     }
     $("go").textContent = "ENTRAR";
   });
-  $("logout").addEventListener("click", () => { store.set("u", null); store.set("p", null); cred = { u: "", p: "" }; token = null; S = null; showLogin(""); });
+  $("go-k").addEventListener("click", async () => {
+    const k = $("kk").value.trim();
+    if (!k) { $("lerr").textContent = "Escribe tu clave."; return; }
+    clave = k; token = null; $("go-k").textContent = "PROBANDO…";
+    try {
+      await tokenNube();
+      store.set("clave", k); $("kk").value = ""; $("lerr").textContent = "";
+      $("v-login").classList.add("hidden"); $("tabs").classList.remove("hidden");
+      paintOpts(); paintRelay(); show("tower"); loop();
+    } catch (e) {
+      clave = "";
+      $("lerr").textContent = NUBE_MSG[e.message] || (e.net ? "No se pudo conectar con tu servidor. Revisa tu internet." : "Error: " + e.message);
+    }
+    $("go-k").textContent = "ENTRAR";
+  });
+  $("logout").addEventListener("click", () => {
+    store.set("u", null); store.set("p", null); store.set("clave", null);
+    cred = { u: "", p: "" }; clave = ""; mqUser = ""; token = null;
+    clearTimeout(timer); clearInterval(startMQTT.tokT);
+    if (mq) { try { mq.end(true); } catch {} mq = null; }
+    S = null; paintRelay(); paintOpts(); showLogin("");
+  });
   $("rate").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; rate = +b.dataset.r; store.set("rate", String(rate)); paintOpts(); });
   for (const k of ["alert", "vib", "me", "wake"]) $("o-" + k).addEventListener("change", (e) => { opt[k] = e.target.checked; store.set("o-" + k, e.target.checked ? "1" : "0"); if (k === "wake") wake(); });
   function paintOpts() {
     document.querySelectorAll("#rate button").forEach((b) => b.classList.toggle("on", +b.dataset.r === rate));
     for (const k of ["alert", "vib", "me", "wake"]) $("o-" + k).checked = opt[k];
-    $("acct").textContent = cred.u ? "Cuenta: " + cred.u : "—";
+    $("acct").textContent = nube() ? "Modo nube: tu cuenta de OpenF1 está guardada en tu servidor" + (mqUser ? " (" + mqUser + ")" : "") + ". Este dispositivo solo guarda tu clave." + (cred.p ? " También tiene tu contraseña guardada como respaldo." : "")
+      : cred.u ? "Cuenta: " + cred.u + " (guardada en este dispositivo)" : "—";
   }
   paintOpts();
   wake();
@@ -1799,29 +1896,60 @@ details.how code{color:var(--cyan)}
   document.addEventListener("click", () => { if (opt.wake && !wl) wake(); }, { passive: true });
   // ---------- puente ----------
   const relaySt = (t, ok) => { const el = $("relay-st"); el.textContent = t; el.className = "txt" + (ok === true ? " okc" : ok === false ? " badc" : ""); el.style.paddingTop = "0"; };
-  function paintRelay() { $("relay").value = relay; $("relay-badge").textContent = relay ? "CONFIGURADO" : "SIN PUENTE"; }
+  function paintRelay() {
+    $("relay").value = relay; $("relay").disabled = !!OWN; $("clave").value = clave;
+    $("relay-badge").textContent = nube() ? (OWN ? "ESTÁS EN TU SERVIDOR" : "MODO NUBE") : relay ? "FALTA TU CLAVE" : "SIN SERVIDOR";
+  }
   paintRelay();
+  if (OWN) relaySt("Estás en tu servidor: " + location.host, true);
   $("relay-save").addEventListener("click", async () => {
-    const v = $("relay").value.trim().replace(/\/+$/, "");
-    if (v && !/^https:\/\/[^\s/]+\.[^\s/]+/.test(v)) { relaySt("La dirección debe empezar con https:// (cópiala tal cual de Cloudflare).", false); return; }
-    relay = v; store.set("relay", v || null); paintRelay();
-    if (!v) { relaySt("Puente quitado. La página usa OpenF1 directo."); return; }
-    relaySt("Probando el puente…");
+    const v = OWN || $("relay").value.trim().replace(/\/+$/, ""), k = $("clave").value.trim();
+    if (v && !OWN && !/^https:\/\/[^\s/]+\.[^\s/]+/.test(v)) { relaySt("La dirección debe empezar con https:// (cópiala tal cual).", false); return; }
+    relay = v; if (!OWN) store.set("relay", v || null);
+    clave = v ? k : ""; store.set("clave", clave || null);
+    token = null; paintRelay();
+    if (!v) { relaySt("Servidor quitado. La página usa OpenF1 directo."); paintOpts(); return; }
+    if (!clave && !(cred.u && cred.p)) { relaySt("Escribe tu CLAVE.", false); return; }
+    relaySt("Probando tu servidor…");
     try {
+      if (clave) await tokenNube();
       const tok = await getToken();
       const r = await fetch(v + "/v1/sessions?session_key=latest", { headers: { Authorization: "Bearer " + tok } });
       const j = await r.json().catch(() => null);
       if (r.ok && Array.isArray(j)) {
-        relaySt("✓ Puente funcionando: OpenF1 responde a través de tu puente.", true);
+        relaySt(nube() ? "✓ Listo: tu servidor funciona. Toca COMPARTIR MI LINK y ábrelo en tus otros dispositivos." : "✓ Puente funcionando. Escribe tu CLAVE para entrar sin contraseña en otros dispositivos.", true);
         if (S) { S.needFill = true; S.histOK = undefined; loop(); }
-      } else relaySt("El puente respondió con error " + r.status + (r.status === 403 ? " (origen no permitido: revisa que pegaste el código completo)." : ". Revisa que pegaste el código completo y le diste Deploy."), false);
-    } catch (e) { relaySt("No se pudo conectar con el puente (" + ((e && e.message) || e) + "). Revisa la dirección.", false); }
+      } else relaySt("Tu servidor respondió con error " + r.status + (r.status === 403 ? " (no acepta esta página)." : ". Revisa la dirección."), false);
+    } catch (e) {
+      if (NUBE_MSG[e.message]) {
+        if (e.message !== "cuenta-nube") { clave = ""; store.set("clave", null); paintRelay(); }
+        relaySt(NUBE_MSG[e.message], false);
+      } else relaySt(e.message === "auth" ? "OpenF1 rechazó la cuenta guardada en este dispositivo." : "No se pudo conectar con tu servidor (" + ((e && (e.detail || e.message)) || e) + "). Revisa la dirección.", false);
+    }
+    paintOpts();
+  });
+  // Tu link: lo abres en cualquier celular o en la compu y entra solo (lleva tu clave, no tu contraseña).
+  function myLink() {
+    return OWN ? OWN + "/#k=" + encodeURIComponent(clave)
+      : location.origin + location.pathname + "#p=" + encodeURIComponent(relay.replace(/^https:\/\//, "")) + "&k=" + encodeURIComponent(clave);
+  }
+  $("link-copy").addEventListener("click", async () => {
+    if (!nube()) { relaySt("Primero pon tu servidor y tu CLAVE y toca GUARDAR Y PROBAR.", false); return; }
+    const link = myLink();
+    try { if (navigator.share) { await navigator.share({ title: "Pure Driving MX · Live Timing", url: link }); relaySt("Listo. Ábrelo en el otro dispositivo y entra solo.", true); return; } }
+    catch (e) { if (e && e.name === "AbortError") return; }
+    try { await navigator.clipboard.writeText(link); relaySt("Link copiado. Mándatelo por WhatsApp y ábrelo en tus otros dispositivos.", true); }
+    catch { relaySt("Copia tu link: " + link, true); }
+  });
+  $("ci-copy").addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText($("ci").textContent.trim() + "\n"); $("ci-copy").textContent = "COPIADO ✓"; }
+    catch { $("ci-copy").textContent = "MANTÉN PRESIONADO EL TEXTO Y CÓPIALO"; }
   });
   $("relay-copy").addEventListener("click", async () => {
     try {
       const t = await (await fetch("puente/worker.js", { cache: "no-store" })).text();
       await navigator.clipboard.writeText(t);
-      relaySt("Código copiado. Pégalo en Cloudflare (paso 4).", true);
+      relaySt("Código copiado. Pégalo en Cloudflare.", true); $("relay-copy").textContent = "COPIADO ✓";
     } catch { relaySt("No se pudo copiar aquí. Ábrelo en julioga120-tech.github.io/pdmx-live./puente/worker.js y cópialo de ahí.", false); }
   });
   $("ver").textContent = "Versión " + BUILD + " · si la recargas y no cambia, espera 1 minuto (GitHub tarda en actualizar).";
@@ -1839,7 +1967,7 @@ details.how code{color:var(--cyan)}
   }
   setInterval(checkUpdate, 5 * 60000); setTimeout(checkUpdate, 20000);
 
-  if (cred.u && cred.p) { $("tabs").classList.remove("hidden"); show("tower"); loop(); } else showLogin("");
+  if (authed()) { $("tabs").classList.remove("hidden"); show("tower"); loop(); } else showLogin("");
 })();
 </script>
 </body>
