@@ -78,7 +78,12 @@ command -v python3 >/dev/null 2>&1 || { log "No hay python3."; exit 1; }
 id pdmx >/dev/null 2>&1 || useradd --system --home-dir /var/lib/pdmx --shell /usr/sbin/nologin pdmx
 mkdir -p /opt/pdmx /var/lib/pdmx /etc/caddy
 chown pdmx:pdmx /var/lib/pdmx && chmod 700 /var/lib/pdmx
-if curl -fsSL "$RAW/servidor.py?t=$(date +%s)" -o /opt/pdmx/servidor.py.new && python3 -m py_compile /opt/pdmx/servidor.py.new; then
+# si lo corres desde tu zip, usa los archivos del zip
+SRC_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" 2>/dev/null && pwd || echo .)"
+if [ -d "$SRC_DIR/web" ]; then mkdir -p /opt/pdmx/web && cp -r "$SRC_DIR/web/." /opt/pdmx/web/ && chmod -R a+rX /opt/pdmx/web; fi
+if [ -f "$SRC_DIR/servidor.py" ] && python3 -m py_compile "$SRC_DIR/servidor.py"; then
+  cp "$SRC_DIR/servidor.py" /opt/pdmx/servidor.py
+elif curl -fsSL "$RAW/servidor.py?t=$(date +%s)" -o /opt/pdmx/servidor.py.new && python3 -m py_compile /opt/pdmx/servidor.py.new; then
   mv /opt/pdmx/servidor.py.new /opt/pdmx/servidor.py
 else
   rm -f /opt/pdmx/servidor.py.new

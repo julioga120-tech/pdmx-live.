@@ -26,6 +26,7 @@ ORIGENES = {"https://julioga120-tech.github.io"}
 DATA = os.environ.get("PDMX_DATA", "/var/lib/pdmx")
 CFG = os.path.join(DATA, "config.json")
 CACHE_DIR = os.path.join(DATA, "pagina")
+WEB_DIR = os.environ.get("PDMX_WEB", "/opt/pdmx/web")   # copia local (de tus zips) por si GitHub no contesta
 PORT = int(os.environ.get("PDMX_PORT", "8787"))
 VERSION = "2026-11-05"
 
@@ -337,6 +338,14 @@ class Handler(BaseHTTPRequestHandler):
                     os.replace(disco + ".tmp", disco)
                 except Exception:
                     pass
+            elif not hit and os.path.isfile(os.path.join(WEB_DIR, p.strip("/"))):
+                # GitHub no contestó: usa la copia que instalaste con tus zips
+                local = os.path.join(WEB_DIR, p.strip("/"))
+                ct = {".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8",
+                      ".png": "image/png", ".json": "application/json"}.get(os.path.splitext(local)[1], "application/octet-stream")
+                with open(local, "rb") as fh:
+                    hit = (now - 50, ct, fh.read())
+                cache[p] = hit
             elif not hit:
                 try:  # GitHub no contestó: usa la última copia guardada
                     with open(disco, "rb") as fh:
