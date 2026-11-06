@@ -24,6 +24,7 @@ OPENF1 = os.environ.get("PDMX_OPENF1", "https://api.openf1.org").rstrip("/")
 ORIGENES = {"https://julioga120-tech.github.io"}
 DATA = os.environ.get("PDMX_DATA", "/var/lib/pdmx")
 CFG = os.path.join(DATA, "config.json")
+CODIGO = os.path.join(DATA, "codigo")   # código de instalación (sale en la terminal); se borra al configurar
 CACHE_DIR = os.path.join(DATA, "pagina")
 WEB_DIR = os.environ.get("PDMX_WEB", "/opt/pdmx/web")   # la página (celular y transmisión) vive aquí
 PORT = int(os.environ.get("PDMX_PORT", "8787"))
@@ -90,6 +91,14 @@ def token_nube(c):
         tok["t"] = j["access_token"]
         tok["exp"] = time.time() + float(j.get("expires_in") or 3600)
         return 200
+
+
+def leer_codigo():
+    try:
+        with open(CODIGO, encoding="utf-8") as f:
+            return f.read().strip()
+    except Exception:
+        return ""
 
 
 def bloqueado(ip):
@@ -257,7 +266,8 @@ class Handler(BaseHTTPRequestHandler):
         v = vals or {}
         esc = lambda s: str(s or "").replace("&", "&amp;").replace("<", "&lt;").replace('"', "&quot;")
         actual = ('<label>TU CLAVE ACTUAL</label><input name=actual type=password autocomplete=off required>'
-                  '<p style="margin-top:8px"><small>Para cambiar algo necesitas tu clave actual. Deja la contraseña vacía para no cambiarla.</small></p>') if c else ""
+                  '<p style="margin-top:8px"><small>Para cambiar algo necesitas tu clave actual. Deja la contraseña vacía para no cambiarla.</small></p>') if c else (
+                  '<label>CÓDIGO DE INSTALACIÓN (SALIÓ EN LA TERMINAL)</label><input name=codigo autocomplete=off autocapitalize=characters spellcheck=false required>')
         self.html(200,
                   "<h1>" + ("Cambiar mi servidor" if c else "Configura tu servidor") + "</h1>"
                   "<p>Tu cuenta de OpenF1 se guarda <b>solo en este servidor</b>. Tus celulares y la compu entran con la CLAVE que inventes aquí.</p>"
@@ -279,6 +289,15 @@ class Handler(BaseHTTPRequestHandler):
             if not iguales(f.get("actual"), c["clave"]):
                 fallo(ip)
                 return self.form("Tu clave actual no coincide.", f)
+        else:
+            cod = leer_codigo()
+            if not cod:
+                return self.form("Falta el código de instalación. En la terminal del servidor corre: sudo bash instalar.sh")
+            if bloqueado(ip):
+                return self.form("Demasiados intentos. Espera 15 minutos.")
+            if not iguales(f.get("codigo", "").upper(), cod.upper()):
+                fallo(ip)
+                return self.form("El código de instalación no coincide (es el que salió en la terminal al instalar).", f)
         user = f.get("user") or (c.get("user") if c else "")
         pw = f.get("pass") or (c.get("pass") if c else "")
         clave = f.get("clave", "")
@@ -294,6 +313,10 @@ class Handler(BaseHTTPRequestHandler):
             return self.form("OpenF1 rechazó esa cuenta: revisa usuario y contraseña." if st in (400, 401, 403, 422)
                              else "OpenF1 no respondió (" + str(st) + "). Intenta otra vez en un momento.", f)
         guardar_cfg({"user": user, "pass": pw, "clave": clave})
+        try:
+            os.remove(CODIGO)
+        except OSError:
+            pass
         with lock:
             tok["t"] = j["access_token"]
             tok["exp"] = time.time() + float(j.get("expires_in") or 3600)

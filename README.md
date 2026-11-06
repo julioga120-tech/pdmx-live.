@@ -16,9 +16,9 @@ Página: https://julioga120-tech.github.io/pdmx-live./
 curl -fsSL --retry 5 --retry-delay 5 https://raw.githubusercontent.com/julioga120-tech/pdmx-live./main/puente/oracle.sh | bash
 ```
 
-Abre los puertos 80 y 443 en la Security List y entra a `https://TU-IP-CON-GUIONES.nip.io`:
+Abre los puertos 80 y 443 en la Security List y entra a `https://f1.TU-IP-CON-GUIONES.sslip.io` (respaldo `f1-TU-IP-CON-GUIONES.nip.io`):
 ahí escribes tu cuenta de OpenF1 (se guarda solo en el servidor) e inventas tu CLAVE. Te da tu link
-(`https://…nip.io/#k=CLAVE`) para abrir en cualquier celular o en la compu, sin contraseña.
+(`https://f1.…sslip.io/#k=CLAVE`) para abrir en cualquier celular o en la compu, sin contraseña.
 El servidor (`puente/servidor.py`, solo Python 3) sirve la página, hace de puente a OpenF1 y se
 actualiza solo desde este repo cada hora.
 

@@ -1,6 +1,7 @@
 #!/bin/bash
 # Instala tu servidor Pure Driving MX en Oracle Cloud gratis (Ubuntu, AMD o Ampere).
-# - Página + puente a OpenF1 en https://IP-CON-GUIONES.nip.io (certificado gratis automático).
+# - Página + puente a OpenF1 en https://f1.IP-CON-GUIONES.sslip.io (respaldo f1-IP-CON-GUIONES.nip.io).
+# - Convive con Pure Publisher y La de Cuadros: su sitio va en /etc/caddy/sitios/pdmx.caddy.
 # - Se queda prendido 24/7 y se reinicia solo. Celular en / y transmisión (OBS) en /tv, todo desde tu servidor.
 #
 # Al crear la instancia: pégalo en "Initialization script" (cloud-init), o en cualquier momento:
@@ -24,7 +25,8 @@ for u in https://api.ipify.org https://ifconfig.me/ip https://icanhazip.com http
 done
 [ -n "$IP" ] || { log "No pude saber la IP pública (¿la instancia tiene IP pública?)"; exit 1; }
 D=$(echo "$IP" | tr . -)
-H1="$D.nip.io"; H2="$D.sslip.io"
+# con prefijo f1: las direcciones sin prefijo son de Pure Publisher (Caddy truena con sitios repetidos)
+H1="f1.$D.sslip.io"; H2="f1-$D.nip.io"
 log "IP pública $IP → https://$H1"
 
 # 2) Firewall de la máquina (Oracle trae todo cerrado menos SSH)
@@ -116,28 +118,53 @@ if [ ! -f /opt/pdmx/web/index.html ]; then  # instalado sin zip: baja la página
   chmod -R a+rX /opt/pdmx/web
 fi
 
-# 6) Caddy: tu sitio en su propio archivo (así puedes agregar otros sitios para tus agentes)
-cat > /etc/caddy/pdmx.caddy <<EOF
+# 6) Caddy (compartido con tus otros programas): solo nuestro sitio, en /etc/caddy/sitios/pdmx.caddy
+mkdir -p /etc/caddy/sitios
+rm -f /etc/caddy/pdmx.caddy   # de instalaciones viejas
+cat > /etc/caddy/sitios/pdmx.caddy <<SITIO
 $H1, $H2 {
 	encode gzip
 	reverse_proxy 127.0.0.1:8787
 }
-http://$IP {
-	redir https://$H1{uri}
-}
-EOF
-if [ ! -s /etc/caddy/Caddyfile ] || grep -q "/usr/share/caddy" /etc/caddy/Caddyfile; then
-  printf 'import /etc/caddy/*.caddy\n' > /etc/caddy/Caddyfile
-elif ! grep -Eq 'import /etc/caddy/(\*|pdmx)\.caddy' /etc/caddy/Caddyfile; then
-  printf '\nimport /etc/caddy/pdmx.caddy\n' >> /etc/caddy/Caddyfile
+SITIO
+touch /etc/caddy/Caddyfile
+# si el Caddyfile ya importa /etc/caddy/sitios/*.caddy (como lo deja Pure Publisher) no se toca
+if ! grep -Fq 'import /etc/caddy/sitios/*.caddy' /etc/caddy/Caddyfile; then
+  sed -i '\#^import /etc/caddy/pdmx\.caddy$#d; \#^import /etc/caddy/\*\.caddy$#d' /etc/caddy/Caddyfile   # líneas de versiones viejas de este instalador
+  if ! grep -q '[^[:space:]]' /etc/caddy/Caddyfile || grep -q "/usr/share/caddy" /etc/caddy/Caddyfile; then
+    printf 'import /etc/caddy/sitios/*.caddy\n' > /etc/caddy/Caddyfile
+  else
+    printf '\nimport /etc/caddy/sitios/*.caddy\n' >> /etc/caddy/Caddyfile
+  fi
+fi
+if ! caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile >/tmp/pdmx-caddy.log 2>&1; then
+  log "Caddy no acepta la configuración; quito el sitio de PDMX para no afectar a tus otros programas:"
+  tail -5 /tmp/pdmx-caddy.log
+  rm -f /etc/caddy/sitios/pdmx.caddy
+  exit 1
+fi
+
+# 7) Código de instalación: solo quien lo tenga puede hacer la primera configuración
+if [ ! -s /var/lib/pdmx/config.json ]; then
+  python3 -c "import secrets;print(secrets.token_hex(4).upper())" > /var/lib/pdmx/codigo
+  chown pdmx:pdmx /var/lib/pdmx/codigo && chmod 600 /var/lib/pdmx/codigo
 fi
 
 systemctl daemon-reload
 systemctl enable pdmx caddy >/dev/null 2>&1
 systemctl restart pdmx
-systemctl restart caddy
+if systemctl is-active --quiet caddy; then systemctl reload caddy; else systemctl restart caddy; fi
 echo "https://$H1" > /var/lib/pdmx/link.txt
 
-# 7) Avisar (el certificado llega solo en 1 a 15 minutos, cuando los puertos 80 y 443 estén abiertos en Oracle)
-MSG="Configúralo en https://$H1 (si no abre: https://$H2). Celular: https://$H1  ·  Transmisión OBS: https://$H1/tv"
-printf '\n==== SERVIDOR PURE DRIVING MX ====\n%s\n==================================\n' "$MSG" | tee /etc/motd
+# 8) Avisar (el certificado llega solo en 1 a 15 minutos, con los puertos 80 y 443 abiertos en Oracle)
+echo
+echo "==== SERVIDOR PURE DRIVING MX ===="
+if [ -s /var/lib/pdmx/codigo ]; then
+  echo "Configúralo en https://$H1/configurar  (respaldo: https://$H2/configurar)"
+  echo "CÓDIGO DE INSTALACIÓN: $(cat /var/lib/pdmx/codigo)"
+else
+  echo "Ya estaba configurado (tu cuenta y tu clave se conservan)."
+fi
+echo "Celular:      https://$H1"
+echo "Transmisión:  https://$H1/tv   (OBS → Fuente Navegador, 1920 x 1080)"
+echo "=================================="

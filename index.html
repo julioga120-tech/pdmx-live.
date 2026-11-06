@@ -311,7 +311,7 @@ pre.code{white-space:pre-wrap;word-break:break-all;background:#0d1520;border:1px
   <section id="v-set" class="pad hidden">
     <div class="card"><h2>TU SERVIDOR · TODO EN VIVO Y UN LINK PARA TODO <small id="relay-badge">SIN SERVIDOR</small></h2>
       <div class="txt">Con tu servidor gratis (Oracle o Cloudflare, prendido 24/7, sin tu computadora) ves <b>todo</b> en vivo aunque entres tarde o bloquees el celular, y tus celulares y la compu entran con tu link, sin contraseña. Tu contraseña de OpenF1 se guarda solo en tu servidor.</div>
-      <div style="padding:0 12px 6px"><input class="fld" id="relay" placeholder="https://129-146-10-20.nip.io" autocapitalize="none" spellcheck="false" inputmode="url"></div>
+      <div style="padding:0 12px 6px"><input class="fld" id="relay" placeholder="https://f1.129-146-10-20.sslip.io" autocapitalize="none" spellcheck="false" inputmode="url"></div>
       <div style="padding:0 12px 4px"><input class="fld" id="clave" type="password" placeholder="Tu CLAVE" autocomplete="off" autocapitalize="none" spellcheck="false"></div>
       <div class="opt" style="padding-top:8px"><button id="relay-save">GUARDAR Y PROBAR</button><button id="link-copy">COMPARTIR MI LINK</button></div>
       <div class="txt" id="relay-st" style="padding-top:0">—</div>
@@ -324,7 +324,7 @@ pre.code{white-space:pre-wrap;word-break:break-all;background:#0d1520;border:1px
       </ol><pre class="code" id="ci">#!/bin/bash
 curl -fsSL --retry 5 --retry-delay 5 https://raw.githubusercontent.com/julioga120-tech/pdmx-live./main/puente/oracle.sh | bash</pre><div class="opt" style="padding:0 0 8px"><button id="ci-copy">COPIAR SCRIPT</button></div><ol start="4">
         <li>En tu instancia: <b>Subnet → Security List → Add Ingress Rules</b>: Source CIDR <code>0.0.0.0/0</code>, puerto destino <code>80,443</code>.</li>
-        <li>Con tu <b>Public IP</b> (ej. 129.146.10.20) abre <b>https://129-146-10-20.nip.io</b> (puntos por guiones). Escribe tu cuenta de OpenF1 e inventa tu CLAVE. La primera vez tarda de 5 a 15 min en abrir.</li>
+        <li>Con tu <b>Public IP</b> (ej. 129.146.10.20) abre <b>https://f1.129-146-10-20.sslip.io</b> (puntos por guiones). Escribe el código que salió al instalar, tu cuenta de OpenF1 e inventa tu CLAVE. La primera vez tarda de 5 a 15 min en abrir.</li>
         <li>Te da tu link: ábrelo en cualquier celular o en la compu y entra solo.</li>
       </ol></details>
       <details class="how"><summary>O EN CLOUDFLARE (SIN TARJETA)</summary><ol>
