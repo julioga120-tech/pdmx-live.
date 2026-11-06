@@ -315,6 +315,8 @@ pre.code{white-space:pre-wrap;word-break:break-all;background:#0d1520;border:1px
       <div style="padding:0 12px 4px"><input class="fld" id="clave" type="password" placeholder="Tu CLAVE" autocomplete="off" autocapitalize="none" spellcheck="false"></div>
       <div class="opt" style="padding-top:8px"><button id="relay-save">GUARDAR Y PROBAR</button><button id="link-copy">COMPARTIR MI LINK</button></div>
       <div class="txt" id="relay-st" style="padding-top:0">—</div>
+      <div class="txt" style="padding:0 12px 4px"><b>PARA TRANSMITIR (OBS):</b> en la compu agrega una fuente <b>Navegador</b> de 1920×1080 con este link. Es el diseño de transmisión de siempre, pero los datos los saca tu servidor: tu compu ya no corre el motor.</div>
+      <div class="opt" style="padding-top:8px"><button id="tv-copy">COPIAR LINK PARA OBS</button><button id="tv-open">ABRIR VISTA OBS</button></div>
       <details class="how"><summary>CREAR MI SERVIDOR GRATIS EN ORACLE (15 MIN)</summary><ol>
         <li>Crea tu cuenta en <b>cloud.oracle.com</b> (Free Tier).</li>
         <li><b>Compute → Instances → Create instance</b>. Imagen: <b>Ubuntu</b>. Forma: <b>VM.Standard.E2.1.Micro</b>, o <b>Ampere A1</b> con máximo 2 OCPU y 12 GB (las dos son Always Free).</li>
@@ -367,7 +369,7 @@ curl -fsSL --retry 5 --retry-delay 5 https://raw.githubusercontent.com/julioga12
 <script src="mqtt.min.js"></script>
 <script>
 (() => {
-  const BUILD = "2026-11-05b";
+  const BUILD = "2026-11-05c";
   const API = "https://api.openf1.org";
   const $ = (id) => document.getElementById(id);
   const store = {
@@ -406,7 +408,9 @@ curl -fsSL --retry 5 --retry-delay 5 https://raw.githubusercontent.com/julioga12
   const landQ = window.matchMedia("(orientation: landscape) and (max-height: 540px)");
   const deskQ = window.matchMedia("(min-width: 1000px) and (min-height: 560px)"); // compu: torre y mapa lado a lado
   const isSplit = () => (landQ.matches || deskQ.matches) && (view === "tower" || view === "map");
-  const mapOn = () => view === "map" || isSplit();
+  // Modo transmisión (tv.html): esta página corre oculta como motor y la pantalla de OBS lee sus datos.
+  const TV = /[?&]tv=1/.test(location.search);
+  const mapOn = () => TV || view === "map" || isSplit();
 
   const fresh = (sess) => ({ sess, wx: null, wxAll: [], drivers: {}, pos: {}, grid: {}, intv: {}, laps: {}, stints: {}, stintAll: {}, rc: [], radios: [], pits: {}, loc: {}, track: null, year: [], champ: null, cur: {} });
 
@@ -992,7 +996,7 @@ curl -fsSL --retry 5 --retry-delay 5 https://raw.githubusercontent.com/julioga12
   const CF = "'Barlow Semi Condensed', system-ui, sans-serif";
   function drawMap(now) {
     requestAnimationFrame(drawMap);
-    if (!mapOn() || !S) return;
+    if (TV || !mapOn() || !S) return;
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     const W = cv.clientWidth, H = cv.clientHeight;
     if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
@@ -1616,7 +1620,7 @@ curl -fsSL --retry 5 --retry-delay 5 https://raw.githubusercontent.com/julioga12
     t = String(t || "").toUpperCase();
     const rep = [
       [/GREEN LIGHT - PIT EXIT OPEN/g, "LUZ VERDE — SALIDA DE PITS ABIERTA"], [/PIT EXIT CLOSED/g, "SALIDA DE PITS CERRADA"],
-      [/RED FLAG/g, "BANDERA ROJA"], [/CHEQUERED FLAG/g, "BANDERA A CUADROS"], [/DOUBLE YELLOW IN TRACK SECTOR (\d+)/g, "DOBLE AMARILLA EN SECTOR $1"],
+      [/CHEQUERED FLAG/g, "BANDERA A CUADROS"], [/\bRED FLAG/g, "BANDERA ROJA"], [/DOUBLE YELLOW IN TRACK SECTOR (\d+)/g, "DOBLE AMARILLA EN SECTOR $1"],
       [/YELLOW IN TRACK SECTOR (\d+)/g, "AMARILLA EN SECTOR $1"], [/CLEAR IN TRACK SECTOR (\d+)/g, "SECTOR $1 LIBRE"], [/TRACK CLEAR/g, "PISTA LIBRE"],
       [/VIRTUAL SAFETY CAR DEPLOYED/g, "VIRTUAL SAFETY CAR"], [/VIRTUAL SAFETY CAR ENDING/g, "VSC TERMINANDO"], [/SAFETY CAR DEPLOYED/g, "SAFETY CAR EN PISTA"], [/SAFETY CAR IN THIS LAP/g, "EL SAFETY CAR ENTRA ESTA VUELTA"],
       [/CAR (\d+) \((\w+)\) TIME ([\d:.]+) DELETED - TRACK LIMITS AT TURN (\d+)/g, "AUTO $1 ($2): TIEMPO $3 BORRADO — LÍMITES DE PISTA EN CURVA $4"],
@@ -1941,6 +1945,14 @@ curl -fsSL --retry 5 --retry-delay 5 https://raw.githubusercontent.com/julioga12
     try { await navigator.clipboard.writeText(link); relaySt("Link copiado. Mándatelo por WhatsApp y ábrelo en tus otros dispositivos.", true); }
     catch { relaySt("Copia tu link: " + link, true); }
   });
+  const tvLink = () => (OWN ? OWN + "/tv.html#k=" + encodeURIComponent(clave)
+    : location.origin + location.pathname.replace(/[^/]*$/, "") + "tv.html#p=" + encodeURIComponent(relay.replace(/^https:\/\//, "")) + "&k=" + encodeURIComponent(clave));
+  $("tv-copy").addEventListener("click", async () => {
+    if (!nube()) { relaySt("Primero pon tu servidor y tu CLAVE y toca GUARDAR Y PROBAR.", false); return; }
+    try { await navigator.clipboard.writeText(tvLink()); relaySt("Link para OBS copiado. En OBS: Fuente → Navegador → pégalo, 1920 × 1080.", true); }
+    catch { relaySt("Link para OBS: " + tvLink(), true); }
+  });
+  $("tv-open").addEventListener("click", () => { if (!nube()) { relaySt("Primero pon tu servidor y tu CLAVE y toca GUARDAR Y PROBAR.", false); return; } window.open(tvLink(), "_blank"); });
   $("ci-copy").addEventListener("click", async () => {
     try { await navigator.clipboard.writeText($("ci").textContent.trim() + "\n"); $("ci-copy").textContent = "COPIADO ✓"; }
     catch { $("ci-copy").textContent = "MANTÉN PRESIONADO EL TEXTO Y CÓPIALO"; }
@@ -1966,6 +1978,62 @@ curl -fsSL --retry 5 --retry-delay 5 https://raw.githubusercontent.com/julioga12
     } catch {}
   }
   setInterval(checkUpdate, 5 * 60000); setTimeout(checkUpdate, 20000);
+
+  // ---------- datos para la pantalla de transmisión (tv.html) ----------
+  const tvStart = Date.now();
+  function tvState() {
+    if (!S) return { ready: false, status: "CONECTANDO CON OPENF1", session: { family: "race" }, tower: [] };
+    const race = isRace(), quali = isQuali(), s = S.sess;
+    const fam = race ? (isSprint() ? "sprint" : "race") : quali ? (/sprint/i.test(s.session_name || "") ? "sprint_qualifying" : "qualifying") : "practice";
+    const { out, st } = buildRows();
+    const c = clock(), rl = race ? raceLaps() : { lap: 0, tot: 0 };
+    const dd = (n) => S.drivers[n] || {};
+    const tower = out.map((r) => {
+      const d = r.d || {}, stint = S.stints[r.n] || {};
+      const gl = r.res && r.res.gap_to_leader != null ? r.res.gap_to_leader : r.intv ? r.intv.gap_to_leader : null;
+      return { number: r.n, name: d.name_acronym || String(r.n), acronym: d.name_acronym, team: d.team_name || "", color: String(d.team_colour || "888888").replace("#", ""),
+        position: r.pos, best_lap: r.p.best || null, last_lap: (r.lastDone && r.lastDone.lap_duration) || null, compound: stint.compound || "", stops: r.stops,
+        status: r.dnf ? "ABANDONO" : r.tag === "pit" ? "PITS" : "", in_pit_lane: r.tag === "pit", gap_leader: gl, gap_previous: r.intv ? r.intv.interval : null };
+    });
+    const events = [];
+    for (const n in S.pits) for (const p of S.pits[n]) events.push({ kind: "PIT", driver_number: +n, pit_duration: p.pit_duration != null ? p.pit_duration : p.lane_duration, lane_duration: p.lane_duration != null ? p.lane_duration : p.pit_duration, stop_duration: p.stop_duration, date: p.date || "" });
+    events.sort((a, b) => (a.date < b.date ? 1 : -1));
+    const srt = (a) => a.slice().sort((x, y) => (x.position_current || 99) - (y.position_current || 99));
+    const b = st.best;
+    let post = null;
+    if (sessionEnded() && S.result && S.result.length >= 10) post = { results: S.result.slice().sort((x, y) => (x.position || 99) - (y.position || 99)) };
+    return {
+      ready: true, mqtt: S.mode === "mqtt", mode: S.mode || "rest", status: "EN VIVO", error: null, config_required: false,
+      session: { family: fam, name: sName(s) || "SESIÓN", phase: quali ? qPhase().ph : null, clock: c.txt, country: String(s.country_name || s.location || "").toUpperCase(), circuit: String(s.circuit_short_name || s.location || "").toUpperCase(), current_lap: rl.lap || null, total_laps: rl.tot || null },
+      tower,
+      race_control: S.rc.slice(-12).reverse().map((m) => ({ id: m.date + "|" + m.message, message: m.message, message_es: es(m.message), flag: m.flag, date: m.date, lap_number: m.lap_number, sector: m.sector, driver_number: m.driver_number })),
+      events: events.slice(0, 12),
+      championship: S.champ ? srt(S.champ.dr).map((x) => ({ ...x, acronym: dd(x.driver_number).name_acronym })) : [],
+      constructors: S.champ ? srt(S.champ.tm) : [],
+      weather: S.wx || {},
+      radio: { items: S.radios.filter((r) => Date.parse(r.date) > tvStart - 5000).slice(-6).map((r) => ({ id: r.recording_url, recording_url: r.recording_url, driver_number: r.driver_number, driver: String(dd(r.driver_number).last_name || dd(r.driver_number).name_acronym || "AUTO " + r.driver_number).toUpperCase() })) },
+      stats: { fastest_lap: b.lap ? fmt(b.lap) : null, fastest_by: b.lap ? dd(b.lapBy).name_acronym : null, top_speed: b.st || null, top_by: b.st ? dd(b.stBy).name_acronym : null },
+      post_session: post,
+    };
+  }
+  function tvMap() {
+    if (!S) return { cars: [], track: [] };
+    if (S.mode !== "mqtt" && !gpsTimer && !gpsBusy) pollGPS();
+    trackFromTrail();
+    const T = S.track, ts = trackState(), vsc = /VIRTUAL|VSC/.test(ts.txt);
+    const base = { safety_car: ts.st === "sc" && !vsc, virtual_safety_car: ts.st === "sc" && vsc, yellow_segments: [] };
+    if (!T) return { ...base, cars: [], track: [] };
+    if (!T.tvPts) T.tvPts = T.P.map((p) => ({ x: p[0], y: -p[1] }));
+    const t = Date.now() - Math.min(20000, Math.max(5000, (lagEMA || 3000) + 4500));
+    const cars = [];
+    for (const n in S.drivers) {
+      const p = posAt(S.loc[n], t); if (!p || p.old) continue;
+      const q2 = T.tf(p.x, p.y), d = S.drivers[n];
+      cars.push({ number: +n, x: q2[0], y: -q2[1], color: String(d.team_colour || "ffffff").replace("#", ""), label: d.name_acronym || String(n), service: false });
+    }
+    return { ...base, track: T.tvPts, rotation: 0, cars };
+  }
+  if (TV) window.PDMX = { authed, state: tvState, map: tvMap };
 
   if (authed()) { $("tabs").classList.remove("hidden"); show("tower"); loop(); } else showLogin("");
 })();
