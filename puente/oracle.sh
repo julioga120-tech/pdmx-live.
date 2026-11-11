@@ -1,11 +1,11 @@
 #!/bin/bash
-# Instala tu servidor Pure Driving MX en Oracle Cloud gratis (Ubuntu, AMD o Ampere).
-# - Página + puente a OpenF1 en https://f1.IP-CON-GUIONES.sslip.io (respaldo f1-IP-CON-GUIONES.nip.io).
+# Instala el servidor Pure Driving MX (live timing público) en tu servidor Ubuntu (Oracle, Azure, etc.).
+# - El motor es el único que habla con OpenF1: se prende 1 h antes de cada sesión y se apaga 1 h después.
+# - Página pública en https://f1.IP-CON-GUIONES.sslip.io (celular en /, transmisión para OBS en /tv).
 # - Convive con Pure Publisher y La de Cuadros: su sitio va en /etc/caddy/sitios/pdmx.caddy.
-# - Se queda prendido 24/7 y se reinicia solo. Celular en / y transmisión (OBS) en /tv, todo desde tu servidor.
 #
-# Al crear la instancia: pégalo en "Initialization script" (cloud-init), o en cualquier momento:
-#   curl -fsSL https://raw.githubusercontent.com/julioga120-tech/pdmx-live./main/puente/oracle.sh | sudo bash
+#   sudo bash instalar.sh                      (dirección gratis f1.IP.sslip.io)
+#   sudo bash instalar.sh live.tudominio.com   (además, tu propio dominio; antes apunta su DNS a la IP del servidor)
 # Volver a correrlo es seguro: actualiza y conserva tu configuración.
 set -u
 RAW="https://raw.githubusercontent.com/julioga120-tech/pdmx-live./main/puente"
@@ -27,7 +27,15 @@ done
 D=$(echo "$IP" | tr . -)
 # con prefijo f1: las direcciones sin prefijo son de Pure Publisher (Caddy truena con sitios repetidos)
 H1="f1.$D.sslip.io"; H2="f1-$D.nip.io"
-log "IP pública $IP → https://$H1"
+mkdir -p /var/lib/pdmx
+DOMINIO="${1:-}"
+[ -n "$DOMINIO" ] || DOMINIO="$(cat /var/lib/pdmx/dominio 2>/dev/null || true)"
+DOMINIO="$(echo "$DOMINIO" | sed -E 's#^https?://##; s#/.*$##' | tr 'A-Z' 'a-z')"
+if [ -n "$DOMINIO" ] && ! echo "$DOMINIO" | grep -Eq '^[a-z0-9]([a-z0-9.-]*[a-z0-9])?\.[a-z]{2,}$'; then log "Dominio no válido: $DOMINIO (se ignora)"; DOMINIO=""; fi
+[ -n "$DOMINIO" ] && echo "$DOMINIO" > /var/lib/pdmx/dominio
+HOSTS="$H1, $H2"; [ -n "$DOMINIO" ] && HOSTS="$DOMINIO, $HOSTS"
+PRINCIPAL="${DOMINIO:-$H1}"
+log "IP pública $IP → https://$PRINCIPAL"
 
 # 2) Firewall de la máquina (Oracle trae todo cerrado menos SSH)
 if command -v firewall-cmd >/dev/null 2>&1 && systemctl is-active --quiet firewalld; then
@@ -76,29 +84,34 @@ fi
 command -v caddy >/dev/null 2>&1 || { log "No se pudo instalar Caddy."; exit 1; }
 command -v python3 >/dev/null 2>&1 || { log "No hay python3."; exit 1; }
 
-# 4) Tu servidor (página + puente). Tu cuenta se guarda en /var/lib/pdmx (solo lo lee el servidor).
+# 4) El servidor y su motor. Tu cuenta se guarda en /var/lib/pdmx (solo lo lee el servidor);
+#    los datos públicos de la sesión van en /var/lib/pdmx-pub.
 id pdmx >/dev/null 2>&1 || useradd --system --home-dir /var/lib/pdmx --shell /usr/sbin/nologin pdmx
-mkdir -p /opt/pdmx /var/lib/pdmx /etc/caddy
-chown pdmx:pdmx /var/lib/pdmx && chmod 700 /var/lib/pdmx
+mkdir -p /opt/pdmx /var/lib/pdmx /var/lib/pdmx-pub /etc/caddy
+chown -R pdmx:pdmx /var/lib/pdmx /var/lib/pdmx-pub && chmod 700 /var/lib/pdmx && chmod 755 /var/lib/pdmx-pub
 # si lo corres desde tu zip, usa los archivos del zip
 SRC_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" 2>/dev/null && pwd || echo .)"
-if [ -d "$SRC_DIR/web" ]; then mkdir -p /opt/pdmx/web && cp -r "$SRC_DIR/web/." /opt/pdmx/web/ && chmod -R a+rX /opt/pdmx/web; fi
-if [ -f "$SRC_DIR/servidor.py" ] && python3 -m py_compile "$SRC_DIR/servidor.py"; then
-  cp "$SRC_DIR/servidor.py" /opt/pdmx/servidor.py
-elif curl -fsSL "$RAW/servidor.py?t=$(date +%s)" -o /opt/pdmx/servidor.py.new && python3 -m py_compile /opt/pdmx/servidor.py.new; then
-  mv /opt/pdmx/servidor.py.new /opt/pdmx/servidor.py
-else
-  rm -f /opt/pdmx/servidor.py.new
-  [ -f /opt/pdmx/servidor.py ] || { log "No pude bajar servidor.py de GitHub."; exit 1; }
-fi
+if [ -d "$SRC_DIR/web" ]; then rm -rf /opt/pdmx/web && mkdir -p /opt/pdmx/web && cp -r "$SRC_DIR/web/." /opt/pdmx/web/; fi
+for F in servidor.py motor.py; do
+  if [ -f "$SRC_DIR/$F" ] && python3 -m py_compile "$SRC_DIR/$F"; then
+    cp "$SRC_DIR/$F" /opt/pdmx/$F
+  elif curl -fsSL "$RAW/$F?t=$(date +%s)" -o /opt/pdmx/$F.new && python3 -m py_compile /opt/pdmx/$F.new; then
+    mv /opt/pdmx/$F.new /opt/pdmx/$F
+  else
+    rm -f /opt/pdmx/$F.new
+    [ -f /opt/pdmx/$F ] || { log "No pude conseguir $F."; exit 1; }
+  fi
+done
 cat > /etc/systemd/system/pdmx.service <<'EOF'
 [Unit]
-Description=Pure Driving MX - pagina y puente a OpenF1
+Description=Pure Driving MX - live timing (motor y paginas)
 After=network-online.target
 Wants=network-online.target
 [Service]
 User=pdmx
 Environment=PDMX_DATA=/var/lib/pdmx
+Environment=PDMX_PUB=/var/lib/pdmx-pub
+Environment=PDMX_WEB=/opt/pdmx/web
 ExecStart=/usr/bin/python3 /opt/pdmx/servidor.py
 Restart=always
 RestartSec=3
@@ -112,21 +125,48 @@ systemctl disable --now pdmx-actualizar.timer >/dev/null 2>&1 || true
 rm -f /etc/systemd/system/pdmx-actualizar.timer /etc/systemd/system/pdmx-actualizar.service /opt/pdmx/actualizar.sh
 if [ ! -f /opt/pdmx/web/index.html ]; then  # instalado sin zip: baja la página una sola vez
   mkdir -p /opt/pdmx/web/tv
-  for f in index.html tv.html mqtt.min.js manifest.json logo.png helmet.png icon-180.png icon-192.png icon-512.png tv/app.js tv/style.css; do
+  for f in index.html tv.html manifest.json logo.png helmet.png icon-180.png icon-192.png icon-512.png tv/app.js tv/style.css; do
     curl -fsSL "https://raw.githubusercontent.com/julioga120-tech/pdmx-live./main/$f" -o "/opt/pdmx/web/$f" || log "No pude bajar $f"
   done
-  chmod -R a+rX /opt/pdmx/web
 fi
+chmod -R a+rX /opt/pdmx/web
 
 # 6) Caddy (compartido con tus otros programas): solo nuestro sitio, en /etc/caddy/sitios/pdmx.caddy
 mkdir -p /etc/caddy/sitios
 rm -f /etc/caddy/pdmx.caddy   # de instalaciones viejas
+# Caddy entrega directo las páginas y los datos (aguanta mucha gente); Python solo atiende /configurar y /estado.
+sitio_rapido() {
 cat > /etc/caddy/sitios/pdmx.caddy <<SITIO
-$H1, $H2 {
+$HOSTS {
+	encode gzip
+	@py path /configurar /estado
+	handle @py {
+		reverse_proxy 127.0.0.1:8787
+	}
+	handle_path /d/* {
+		root * /var/lib/pdmx-pub
+		header Cache-Control "no-cache"
+		file_server
+	}
+	handle {
+		root * /opt/pdmx/web
+		try_files {path} {path}.html
+		header Cache-Control "no-cache"
+		file_server
+	}
+}
+SITIO
+}
+# Plan B (si tu versión de Caddy no acepta lo anterior): todo pasa por Python, que también sabe entregarlo.
+sitio_simple() {
+cat > /etc/caddy/sitios/pdmx.caddy <<SITIO
+$HOSTS {
 	encode gzip
 	reverse_proxy 127.0.0.1:8787
 }
 SITIO
+}
+sitio_rapido
 touch /etc/caddy/Caddyfile
 # si el Caddyfile ya importa /etc/caddy/sitios/*.caddy (como lo deja Pure Publisher) no se toca
 if ! grep -Fq 'import /etc/caddy/sitios/*.caddy' /etc/caddy/Caddyfile; then
@@ -136,6 +176,10 @@ if ! grep -Fq 'import /etc/caddy/sitios/*.caddy' /etc/caddy/Caddyfile; then
   else
     printf '\nimport /etc/caddy/sitios/*.caddy\n' >> /etc/caddy/Caddyfile
   fi
+fi
+if ! caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile >/tmp/pdmx-caddy.log 2>&1; then
+  log "Caddy no aceptó la configuración rápida; uso la simple."
+  sitio_simple
 fi
 if ! caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile >/tmp/pdmx-caddy.log 2>&1; then
   log "Caddy no acepta la configuración; quito el sitio de PDMX para no afectar a tus otros programas:"
@@ -154,17 +198,19 @@ systemctl daemon-reload
 systemctl enable pdmx caddy >/dev/null 2>&1
 systemctl restart pdmx
 if systemctl is-active --quiet caddy; then systemctl reload caddy; else systemctl restart caddy; fi
-echo "https://$H1" > /var/lib/pdmx/link.txt
+echo "https://$PRINCIPAL" > /var/lib/pdmx/link.txt
 
-# 8) Avisar (el certificado llega solo en 1 a 15 minutos, con los puertos 80 y 443 abiertos en Oracle)
+# 8) Avisar (el certificado llega solo en 1 a 15 minutos, con los puertos 80 y 443 abiertos)
 echo
 echo "==== SERVIDOR PURE DRIVING MX ===="
 if [ -s /var/lib/pdmx/codigo ]; then
   echo "Configúralo en https://$H1/configurar  (respaldo: https://$H2/configurar)"
   echo "CÓDIGO DE INSTALACIÓN: $(cat /var/lib/pdmx/codigo)"
 else
-  echo "Ya estaba configurado (tu cuenta y tu clave se conservan)."
+  echo "Ya estaba configurado (tu cuenta de OpenF1 se conserva)."
 fi
-echo "Celular:      https://$H1"
-echo "Transmisión:  https://$H1/tv   (OBS → Fuente Navegador, 1920 x 1080)"
+echo "Página pública:  https://$PRINCIPAL"
+echo "Transmisión OBS: https://$PRINCIPAL/tv   (Fuente Navegador, 1920 x 1080)"
+echo "Cómo va el motor: https://$PRINCIPAL/estado"
+[ -n "$DOMINIO" ] && echo "Tu dominio $DOMINIO debe apuntar (registro A) a $IP. También sigue sirviendo https://$H1"
 echo "=================================="
