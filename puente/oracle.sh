@@ -125,10 +125,13 @@ systemctl disable --now pdmx-actualizar.timer >/dev/null 2>&1 || true
 rm -f /etc/systemd/system/pdmx-actualizar.timer /etc/systemd/system/pdmx-actualizar.service /opt/pdmx/actualizar.sh
 if [ ! -f /opt/pdmx/web/index.html ]; then  # instalado sin zip: baja la página una sola vez
   mkdir -p /opt/pdmx/web/tv
-  for f in index.html tv.html manifest.json logo.png helmet.png icon-180.png icon-192.png icon-512.png tv/app.js tv/style.css; do
+  for f in index.html tv.html og-image.png manifest.json logo.png helmet.png icon-180.png icon-192.png icon-512.png tv/app.js tv/style.css; do
     curl -fsSL "https://raw.githubusercontent.com/julioga120-tech/pdmx-live./main/$f" -o "/opt/pdmx/web/$f" || log "No pude bajar $f"
   done
 fi
+# dirección pública en las vistas previas (WhatsApp, Facebook, X) y robots.txt
+sed -i "s#__SITIO__#https://$PRINCIPAL#g" /opt/pdmx/web/index.html 2>/dev/null || true
+printf 'User-agent: *\nAllow: /\nDisallow: /configurar\nDisallow: /estado\nDisallow: /d/\n' > /opt/pdmx/web/robots.txt
 chmod -R a+rX /opt/pdmx/web
 
 # 6) Caddy (compartido con tus otros programas): solo nuestro sitio, en /etc/caddy/sitios/pdmx.caddy
