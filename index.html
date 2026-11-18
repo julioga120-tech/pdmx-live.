@@ -53,7 +53,7 @@ button,input{font:inherit;color:inherit}
 .clk small{display:block;font-size:10px;font-weight:700;color:var(--mut);letter-spacing:1.4px}
 .clk b{font-size:28px;font-weight:800;line-height:1}
 .flag{margin-top:7px;padding:5px 10px;border-radius:4px;font-size:13px;font-weight:800;letter-spacing:1.2px;text-align:center;background:#0f2a1d;color:var(--green);border:1px solid #25e88955}
-.flag.yellow{background:#2d2700;color:var(--yellow);border-color:#ffd40066}.flag.red{background:#3a0912;color:#ff6a7f;border-color:#ff314f88}.flag.sc{background:#2d2000;color:var(--orange);border-color:#ff9f1a77}.flag.chq{background:#1b1f26;color:#fff;border-color:#ffffff55}
+.flag.yellow{background:#2d2700;color:var(--yellow);border-color:#ffd40066}.flag.red{background:#3a0912;color:#ff6a7f;border-color:#ff314f88}.flag.sc{background:#2d2000;color:var(--orange);border-color:#ff9f1a77}.flag.chq{background:#1b1f26;color:#fff;border-color:#ffffff55}.flag.off{background:#121820;color:var(--mut);border-color:#2a3542}
 .wx{margin-top:5px;font-size:12px;font-weight:700;color:var(--mut);letter-spacing:.8px;display:flex;justify-content:space-between;gap:8px}
 .wx b{color:var(--tx)}
 /* alerta */
@@ -244,6 +244,12 @@ body.split{padding-bottom:0}
 }
 .lbrand{display:none}
 @media (orientation:landscape) and (max-height:540px){.lbrand{display:flex;align-items:center;gap:6px;margin-right:10px}.lbrand img{height:22px}}
+.aviso{margin:6px 12px 8px;padding:9px 12px;border-radius:6px;border:1px solid var(--line);background:var(--panel);display:flex;flex-direction:column;gap:3px}
+.aviso b{font-size:14px;letter-spacing:1.2px;font-weight:800}
+.aviso span{font-size:12.5px;color:var(--mut);font-weight:600;line-height:1.35}
+.aviso.off{border-color:#33404f}.aviso.off b{color:var(--tx)}
+.aviso.err{border-color:rgba(255,49,79,.55);background:rgba(255,49,79,.08)}.aviso.err b{color:#ff8a9b}
+.aviso.warn{border-color:rgba(255,212,0,.45);background:rgba(255,212,0,.06)}.aviso.warn b{color:var(--yellow)}
 #note{padding:0 12px;font-size:12px;color:var(--yellow);font-weight:700;line-height:1.35}
 #note:not(:empty){padding:6px 12px}
 #updbox .alert{top:auto;bottom:calc(70px + env(safe-area-inset-bottom));cursor:pointer}
@@ -280,6 +286,7 @@ pre.code{white-space:pre-wrap;word-break:break-all;background:#0d1520;border:1px
   </div>
   <div class="flag" id="flag">PISTA VERDE</div>
   <div class="wx" id="wx"></div>
+  <div id="aviso" class="aviso hidden"></div>
 </header>
 
 <main>
@@ -338,7 +345,7 @@ pre.code{white-space:pre-wrap;word-break:break-all;background:#0d1520;border:1px
 
 <script>
 (() => {
-  const BUILD = "3.1 · 2026-11-17";
+  const BUILD = "3.2 · 2026-11-17";
   const API = "https://api.openf1.org";
   const $ = (id) => document.getElementById(id);
   const store = {
@@ -473,7 +480,7 @@ pre.code{white-space:pre-wrap;word-break:break-all;background:#0d1520;border:1px
   async function loadSnap() {
     const j = await getJSON("snap.json?t=" + NOW());
     if (!j) throw new Error("sin datos");
-    HEAD = { gen: j.gen, seq: j.seq, estado: j.estado, mqtt: j.mqtt, key: j.key };
+    HEAD = { gen: j.gen, seq: j.seq, estado: j.estado, mqtt: j.mqtt, key: j.key, on: j.on, dato: j.dato, err: j.err, prox: j.prox, t: j.t, at: Date.now() };
     snapAt = NOW();
     if (!j.session) { S = null; return; }
     const old = S;
@@ -519,7 +526,7 @@ pre.code{white-space:pre-wrap;word-break:break-all;background:#0d1520;border:1px
             const h = await getJSON("head.json?t=" + NOW());
             if (h) {
               const cambio = h.estado !== HEAD.estado;
-              HEAD = h;
+              HEAD = { ...h, at: Date.now() };
               if (h.gen !== S.gen || h.seq < S.seq || h.seq > S.seq + 600 || cambio) needSnap = true;
               else if (h.seq > S.seq) misses = 0;
             }
@@ -1004,6 +1011,8 @@ pre.code{white-space:pre-wrap;word-break:break-all;background:#0d1520;border:1px
     const w = S.wx;
     const om = isRace() ? overtakeMode() : null;
     if (om != null) $("flag").textContent = ts.txt + (om ? " · OVERTAKE MODE ✓" : " · OVERTAKE MODE ✗");
+    // fuera de sesión no se dice "pista verde": se dice que la sesión está apagada
+    if (HEAD && !HEAD.on && ts.st !== "chq" && ts.st !== "red") { $("flag").className = "flag off"; $("flag").textContent = HEAD.estado === "final" ? "SESIÓN TERMINADA" : "SESIÓN OFF"; }
     $("wx").innerHTML = w ? `<span>AIRE <b>${Math.round(w.air_temperature)}°</b> · PISTA <b>${Math.round(w.track_temperature)}°</b></span><span>${w.rainfall ? '<b style="color:var(--cyan)">LLUVIA</b>' : "SIN LLUVIA"} · VIENTO <b>${Math.round((w.wind_speed || 0) * 3.6)}</b> km/h</span>` : "";
     const errs = [];
     // Solo se pinta lo que estás viendo (ahorra batería); la torre siempre, porque da el orden.
@@ -1366,19 +1375,53 @@ pre.code{white-space:pre-wrap;word-break:break-all;background:#0d1520;border:1px
   // ---------- bucles ----------
   function tickClock() { if (!S) return; const c = clock(); $("clab").textContent = c.lab; $("clock").textContent = c.txt; }
   // Estado arriba a la derecha
+  // ---------- estado para el público: SESIÓN ON / OFF / fallando ----------
+  // Una sola fuente: head.json del servidor. Si no llega o es viejo, el problema es la conexión o el servidor.
+  function estadoPublico() {
+    const now = Date.now();
+    if (netFails >= 3) return navigator.onLine === false
+      ? { k: "net", tag: "SIN INTERNET", cls: "err", t: "TU CELULAR NO TIENE INTERNET", d: "En cuanto vuelva la señal, la página se pone al día sola." }
+      : { k: "srv", tag: "SIN RESPUESTA", cls: "err", t: "EL LIVE TIMING NO ESTÁ RESPONDIENDO", d: "Puede ser una falla del servidor o de tu red. La página sigue intentando y se pone al día sola; los últimos datos se quedan en pantalla." };
+    if (!HEAD) return { k: "load", tag: "CONECTANDO…", cls: "warn", t: "", d: "" };
+    const viejo = HEAD.at && now - HEAD.at > 45000 && netFails > 0;
+    if (viejo || (HEAD.t && now - HEAD.t > (HEAD.on ? 60000 : 180000)))
+      return { k: "srv", tag: "SIN RESPUESTA", cls: "err", t: "EL SERVIDOR NO ESTÁ RESPONDIENDO", d: "Estamos trabajando para restablecerlo. Los últimos datos se quedan en pantalla." };
+    if (HEAD.estado === "config" || HEAD.err === "cuenta")
+      return { k: "mant", tag: "EN MANTENIMIENTO", cls: "err", t: "LIVE TIMING EN MANTENIMIENTO", d: "Vuelve en unos minutos." };
+    if (HEAD.on) {
+      if (HEAD.err === "openf1") return { k: "fail", tag: "SESIÓN ON · SIN DATOS", cls: "err", t: "SESIÓN ON · LA FUENTE DE DATOS NO RESPONDE", d: "El servidor está prendido pero no le llegan datos desde hace " + dur((HEAD.dato || 0) * 1000) + ". Se recupera solo." };
+      if (HEAD.estado === "previa") return { k: "pre", tag: "SESIÓN ON · PREVIA", cls: "ok", t: "", d: "" };
+      if (HEAD.estado === "final") return { k: "fin", tag: "SESIÓN TERMINADA", cls: "ok", t: "", d: "" };
+      if (HEAD.dato != null && HEAD.dato > 60) return { k: "lento", tag: "SESIÓN ON · SEÑAL LENTA", cls: "warn", t: "", d: "" };
+      return { k: "on", tag: HEAD.mqtt === false ? "SESIÓN ON · RESPALDO" : "SESIÓN ON · EN VIVO", cls: HEAD.mqtt === false ? "warn" : "ok", t: "", d: "" };
+    }
+    const p = HEAD.prox;
+    const cuando = p ? " · PRÓXIMA: " + String(p.lugar || "").toUpperCase() + " · " + String(p.nombre ? sName({ session_name: p.nombre }) : "").toUpperCase() + " " + dia(p.ini) : "";
+    if (HEAD.estado === "final") return { k: "off", tag: "SESIÓN OFF", cls: "off", t: "SESIÓN OFF · TERMINADA", d: "Abajo ves el resultado." + (p ? " Próxima sesión " + dia(p.ini) + "; el live timing se prende solo 1 hora antes." : "") };
+    return { k: "off", tag: "SESIÓN OFF", cls: "off", t: "SESIÓN OFF" + cuando, d: p ? "El live timing se prende solo 1 hora antes (" + dia(p.on) + ")." : "No hay sesiones programadas por ahora." };
+  }
+  function dur(ms) { const s = Math.round(ms / 1000); return s < 90 ? s + " s" : s < 5400 ? Math.round(s / 60) + " min" : Math.round(s / 3600) + " h"; }
+  function dia(ms) {
+    if (!ms) return "";
+    const d = new Date(ms);
+    return d.toLocaleDateString("es-MX", { weekday: "short", day: "numeric", month: "short" }).replace(/\./g, "").toUpperCase() + " " + d.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" });
+  }
+  let lastAviso = "";
   function paintStatus() {
-    if (netFails >= 3) return setStatus("RECONECTANDO…", "warn");
-    if (!HEAD) return setStatus("CONECTANDO…", "warn");
-    const e = HEAD.estado;
-    if (e === "config") return setStatus("SERVIDOR SIN CONFIGURAR", "err");
-    if (e === "vivo") return setStatus(HEAD.mqtt === false ? "EN VIVO · RESPALDO" : "EN VIVO", "ok");
-    if (e === "previa") return setStatus("CONECTADO", "ok");
-    if (e === "final") return setStatus("FINALIZADA", "ok");
-    return setStatus("EN ESPERA", "warn");
+    const e = estadoPublico();
+    setStatus(e.tag, e.cls === "off" ? "warn" : e.cls);
+    const box = $("aviso"), key = e.k + "|" + e.t + "|" + e.d;
+    if (key === lastAviso) return;
+    lastAviso = key;
+    if (!e.t) { box.classList.add("hidden"); return; }
+    box.className = "aviso " + e.cls;
+    box.innerHTML = "<b>" + esc(e.t) + "</b>" + (e.d ? "<span>" + esc(e.d) + "</span>" : "");
   }
   function sinSesion() {
     if (S || !HEAD) return;
-    $("sname").textContent = "LIVE TIMING"; $("ssub").textContent = HEAD.estado === "config" ? "EL SERVIDOR TODAVÍA NO ESTÁ CONFIGURADO" : "ESPERANDO EL CALENDARIO";
+    const e = estadoPublico();
+    $("sname").textContent = "LIVE TIMING";
+    $("ssub").textContent = e.k === "mant" ? "EN MANTENIMIENTO" : HEAD.prox ? "PRÓXIMA SESIÓN " + dia(HEAD.prox.ini) : "SIN SESIONES PROGRAMADAS";
   }
   setInterval(() => { tickClock(); paintStatus(); sinSesion(); }, 1000);
   setInterval(() => { if (S && view === "info") renderInfo(); }, 15000);

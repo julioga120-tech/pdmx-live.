@@ -277,6 +277,9 @@ class Motor:
             try:
                 with urllib.request.urlopen(urllib.request.Request(OPENF1 + "/v1/" + path, headers=h), timeout=30) as r:
                     j = json.loads(r.read() or b"[]")
+                self.rest_at = time.time()
+                if self.err.startswith("OpenF1 HTTP") or self.err.startswith("OpenF1 no respondió"):
+                    self.err = ""
                 return j if isinstance(j, list) else []
             except urllib.error.HTTPError as e:
                 if e.code in (404, 422):
@@ -689,11 +692,27 @@ class Motor:
         if not self.sess:
             return "espera"
         if self.activo:
-            return "previa" if now < ms(self.sess.get("date_start")) / 1000 and not self.laps else "vivo"
+            if now < ms(self.sess.get("date_start")) / 1000 and not self.laps:
+                return "previa"
+            return "final" if self.terminada(now) else "vivo"
         return "final"
 
     def _head(self, now):
-        return {"gen": self.gen, "seq": self.seq, "t": int(now * 1000), "key": self.key, "estado": self.estado(), "mqtt": self.mq_ok}
+        """Lo que la página pública necesita para decir si la sesión está ON, OFF o fallando."""
+        ult = max(getattr(self, "rest_at", 0) or 0, self.mq_at or 0)
+        err = ""
+        if "rechazó la cuenta" in (self.err or ""):
+            err = "cuenta"
+        elif self.activo and self.estado() == "vivo" and ((ult and now - ult > 120) or (not ult and self.err)):
+            err = "openf1"           # sesión en curso, motor prendido, pero OpenF1 no le da datos (ni tiempo real ni repaso)
+        h = {"gen": self.gen, "seq": self.seq, "t": int(now * 1000), "key": self.key, "estado": self.estado(), "mqtt": self.mq_ok,
+             "on": bool(self.activo), "dato": int(now - ult) if ult else None, "err": err}
+        if not self.activo:
+            p = self.siguiente(now) if self.year else None
+            if p:
+                h["prox"] = {"nombre": p.get("session_name"), "lugar": p.get("location") or p.get("circuit_short_name"),
+                             "pais": p.get("country_name"), "ini": ms(p.get("date_start")), "on": ms(p.get("date_start")) - ANTES * 1000}
+        return h
 
     def _publicar(self, now):
         with self.lock:
