@@ -1519,7 +1519,7 @@ pre.code{white-space:pre-wrap;word-break:break-all;background:#0d1520;border:1px
     let post = null;
     if (sessionEnded() && S.result && S.result.length >= 10) post = { results: S.result.slice().sort((x, y) => (x.position || 99) - (y.position || 99)) };
     return {
-      ready: true, mqtt: true, mode: "mqtt", status: "EN VIVO", error: null, config_required: false,
+      ready: true, mqtt: true, mode: "mqtt", status: estadoPublico().tag, error: null, config_required: false,
       session: { family: fam, name: sName(s) || "SESIÓN", phase: quali ? qPhase().ph : null, clock: c.txt, country: String(s.country_name || s.location || "").toUpperCase(), circuit: String(s.circuit_short_name || s.location || "").toUpperCase(), current_lap: rl.lap || null, total_laps: rl.tot || null },
       tower,
       race_control: S.rc.slice(-12).reverse().map((m) => ({ id: m.date + "|" + m.message, message: m.message, message_es: es(m.message), flag: m.flag, date: m.date, lap_number: m.lap_number, sector: m.sector, driver_number: m.driver_number })),
