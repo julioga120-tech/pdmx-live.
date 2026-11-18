@@ -47,8 +47,10 @@ elif command -v iptables >/dev/null 2>&1; then
 fi
 if command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -q "Status: active"; then ufw allow 80/tcp >/dev/null; ufw allow 443/tcp >/dev/null; fi
 
-# 3) Python 3 y Caddy (HTTPS automático)
-if command -v apt-get >/dev/null 2>&1; then
+# 3) Python 3 y Caddy (HTTPS automático). Desde el panel (PDMX_RAPIDO=1) se omite si ya están instalados.
+if [ "${PDMX_RAPIDO:-}" = 1 ] && command -v caddy >/dev/null 2>&1 && command -v python3 >/dev/null 2>&1; then
+  log "Actualización rápida: Caddy y Python ya instalados."
+elif command -v apt-get >/dev/null 2>&1; then
   esperar_apt; $APT update >/dev/null 2>&1
   esperar_apt; $APT install curl gnupg python3 >/dev/null 2>&1
   if ! command -v caddy >/dev/null 2>&1; then
@@ -87,7 +89,7 @@ command -v python3 >/dev/null 2>&1 || { log "No hay python3."; exit 1; }
 # 4) El servidor y su motor. Tu cuenta se guarda en /var/lib/pdmx (solo lo lee el servidor);
 #    los datos públicos de la sesión van en /var/lib/pdmx-pub.
 id pdmx >/dev/null 2>&1 || useradd --system --home-dir /var/lib/pdmx --shell /usr/sbin/nologin pdmx
-mkdir -p /opt/pdmx /var/lib/pdmx /var/lib/pdmx-pub /etc/caddy
+mkdir -p /opt/pdmx /var/lib/pdmx/actualizar /var/lib/pdmx-pub /etc/caddy
 chown -R pdmx:pdmx /var/lib/pdmx /var/lib/pdmx-pub && chmod 700 /var/lib/pdmx && chmod 755 /var/lib/pdmx-pub
 # si lo corres desde tu zip, usa los archivos del zip
 SRC_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" 2>/dev/null && pwd || echo .)"
@@ -102,6 +104,30 @@ for F in servidor.py motor.py; do
     [ -f /opt/pdmx/$F ] || { log "No pude conseguir $F."; exit 1; }
   fi
 done
+# ejecutor del panel (root): actualizar desde zip, volver a la versión anterior, reiniciar
+if [ -f "$SRC_DIR/panel-root.sh" ] && bash -n "$SRC_DIR/panel-root.sh"; then
+  cp "$SRC_DIR/panel-root.sh" /opt/pdmx/panel-root.sh.new && chmod 755 /opt/pdmx/panel-root.sh.new && mv /opt/pdmx/panel-root.sh.new /opt/pdmx/panel-root.sh
+elif curl -fsSL "$RAW/panel-root.sh?t=$(date +%s)" -o /opt/pdmx/panel-root.sh.new && bash -n /opt/pdmx/panel-root.sh.new; then
+  chmod 755 /opt/pdmx/panel-root.sh.new && mv /opt/pdmx/panel-root.sh.new /opt/pdmx/panel-root.sh
+fi
+chown root:root /opt/pdmx/panel-root.sh 2>/dev/null
+cat > /etc/systemd/system/pdmx-panel.path <<'EOF'
+[Unit]
+Description=Pure Driving MX - pedidos del panel
+[Path]
+PathExists=/var/lib/pdmx/actualizar/pedido.json
+Unit=pdmx-panel.service
+[Install]
+WantedBy=multi-user.target
+EOF
+cat > /etc/systemd/system/pdmx-panel.service <<'EOF'
+[Unit]
+Description=Pure Driving MX - ejecutor del panel
+[Service]
+Type=oneshot
+ExecStart=/bin/bash /opt/pdmx/panel-root.sh
+TimeoutStartSec=900
+EOF
 cat > /etc/systemd/system/pdmx.service <<'EOF'
 [Unit]
 Description=Pure Driving MX - live timing (motor y paginas)
@@ -131,7 +157,7 @@ if [ ! -f /opt/pdmx/web/index.html ]; then  # instalado sin zip: baja la página
 fi
 # dirección pública en las vistas previas (WhatsApp, Facebook, X) y robots.txt
 sed -i "s#__SITIO__#https://$PRINCIPAL#g" /opt/pdmx/web/index.html 2>/dev/null || true
-printf 'User-agent: *\nAllow: /\nDisallow: /configurar\nDisallow: /estado\nDisallow: /d/\n' > /opt/pdmx/web/robots.txt
+printf 'User-agent: *\nAllow: /\nDisallow: /configurar\nDisallow: /panel\nDisallow: /estado\nDisallow: /d/\n' > /opt/pdmx/web/robots.txt
 chmod -R a+rX /opt/pdmx/web
 
 # 6) Caddy (compartido con tus otros programas): solo nuestro sitio, en /etc/caddy/sitios/pdmx.caddy
@@ -142,7 +168,7 @@ sitio_rapido() {
 cat > /etc/caddy/sitios/pdmx.caddy <<SITIO
 $HOSTS {
 	encode gzip
-	@py path /configurar /estado
+	@py path /configurar /estado /panel /panel/*
 	handle @py {
 		reverse_proxy 127.0.0.1:8787
 	}
@@ -198,7 +224,8 @@ if [ ! -s /var/lib/pdmx/config.json ]; then
 fi
 
 systemctl daemon-reload
-systemctl enable pdmx caddy >/dev/null 2>&1
+systemctl enable pdmx caddy pdmx-panel.path >/dev/null 2>&1
+systemctl start pdmx-panel.path
 systemctl restart pdmx
 if systemctl is-active --quiet caddy; then systemctl reload caddy; else systemctl restart caddy; fi
 echo "https://$PRINCIPAL" > /var/lib/pdmx/link.txt
@@ -214,6 +241,7 @@ else
 fi
 echo "Página pública:  https://$PRINCIPAL"
 echo "Transmisión OBS: https://$PRINCIPAL/tv   (Fuente Navegador, 1920 x 1080)"
+echo "Panel del servidor: https://$PRINCIPAL/panel   (actualizar subiendo el zip desde el celular)"
 echo "Cómo va el motor: https://$PRINCIPAL/estado"
 [ -n "$DOMINIO" ] && echo "Tu dominio $DOMINIO debe apuntar (registro A) a $IP. También sigue sirviendo https://$H1"
 echo "=================================="
