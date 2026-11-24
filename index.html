@@ -350,7 +350,7 @@ pre.code{white-space:pre-wrap;word-break:break-all;background:#0d1520;border:1px
 
 <script>
 (() => {
-  const BUILD = "3.6 · 2026-11-24";
+  const BUILD = "3.7 · 2026-11-24";
   const API = "https://api.openf1.org";
   const $ = (id) => document.getElementById(id);
   const store = {
@@ -1309,9 +1309,9 @@ pre.code{white-space:pre-wrap;word-break:break-all;background:#0d1520;border:1px
     [...txt].forEach((c, i) => { ctx.fillText(c, cx, y); cx += ws[i] + sp; });
   }
   const MED = {
-    v: { top: 470, bot: 240, izq: 80, der: 300, t1: 92, t1y: 150, t2: 42, t2y: 225, t3: 64, t3y: 318, ej: 40, et: 46, g: 7, dot: 13, p1: 44, p1y: 86, p2: 28, p2y: 40 },
-    c: { top: 255, bot: 150, izq: 66, der: 250, t1: 64, t1y: 88, t2: 28, t2y: 140, t3: 44, t3y: 202, ej: 26, et: 30, g: 5, dot: 9, p1: 30, p1y: 52, p2: 19, p2y: 22 },
-    h: { top: 250, bot: 140, izq: 90, der: 330, t1: 78, t1y: 98, t2: 36, t2y: 152, t3: 50, t3y: 212, ej: 30, et: 36, g: 6, dot: 11, p1: 34, p1y: 50, p2: 22, p2y: 18 },
+    v: { top: 480, bot: 240, izq: 80, der: 330, t1: 92, t1y: 150, t2: 42, t2y: 225, t3: 64, t3y: 318, ej: 40, et: 46, g: 7, dot: 13, p1: 44, p1y: 86, p2: 28, p2y: 40 },
+    c: { top: 300, bot: 150, izq: 66, der: 275, t1: 64, t1y: 88, t2: 28, t2y: 140, t3: 44, t3y: 202, ej: 26, et: 30, g: 5, dot: 9, p1: 30, p1y: 52, p2: 19, p2y: 22 },
+    h: { top: 290, bot: 140, izq: 90, der: 360, t1: 78, t1y: 98, t2: 36, t2y: 152, t3: 50, t3y: 212, ej: 30, et: 36, g: 6, dot: 11, p1: 34, p1y: 50, p2: 22, p2y: 18 },
   };
   function pintarImagen(ctx, W, H, D, fmtI, ultimas) {
     const K = MED[fmtI] || MED.v, vert = fmtI === "v";
@@ -1346,6 +1346,25 @@ pre.code{white-space:pre-wrap;word-break:break-all;background:#0d1520;border:1px
     espaciado(ctx, ("GRAN PREMIO DE " + lugar + (isSprint() ? " · SPRINT" : "") + " · " + (s.year || "")).toUpperCase(), W / 2, K.t2y, 5);
     ctx.fillStyle = "#ff3b4f"; ctx.font = FN(800, K.t3);
     espaciado(ctx, "VUELTA " + maxL + (rl.tot ? " / " + rl.tot : ""), W / 2, K.t3y, 5);
+    // leyenda: llantas usadas en la carrera y paradas en pits
+    const LL = { SOFT: ["BLANDA", "#ff3b3b"], MEDIUM: ["MEDIA", "#ffd400"], HARD: ["DURA", "#eef3f8"], INTERMEDIATE: ["INTERMEDIA", "#39d353"], WET: ["LLUVIA", "#2f8cff"] };
+    const usadas = Object.keys(LL).filter((c) => Object.values(S.stintAll).some((a) => a.some((x) => String(x.compound || "").toUpperCase() === c)));
+    {
+      const fz = Math.round(K.t2 * 0.82), r = Math.round(fz * 0.36), y = (K.t3y + top) / 2 + (fmtI === "v" ? 6 : 2);
+      ctx.font = FN(800, fz); ctx.textBaseline = "middle";
+      const items = usadas.map((c) => ({ t: LL[c][0], col: LL[c][1], tipo: "llanta" })).concat([{ t: "PARADA", col: "#ffffff", tipo: "pit" }]);
+      const anchoItem = (it) => r * 2 + 10 + ctx.measureText(it.t).width;
+      const tit = "LLANTAS", gap = fz * 0.9;
+      let total = ctx.measureText(tit).width + gap + items.reduce((a, it) => a + anchoItem(it) + gap, 0) - gap;
+      let x = W / 2 - total / 2;
+      ctx.fillStyle = "#9aa6b5"; ctx.textAlign = "left"; ctx.fillText(tit, x, y); x += ctx.measureText(tit).width + gap;
+      for (const it of items) {
+        if (it.tipo === "llanta") { ctx.beginPath(); ctx.arc(x + r, y, r, 0, 7); ctx.lineWidth = Math.max(3, r * 0.55); ctx.strokeStyle = it.col; ctx.stroke(); }
+        else { ctx.beginPath(); ctx.arc(x + r, y, r * 0.75, 0, 7); ctx.fillStyle = "#06080c"; ctx.fill(); ctx.lineWidth = Math.max(2, r * 0.4); ctx.strokeStyle = "#ffffff"; ctx.stroke(); }
+        ctx.fillStyle = it.tipo === "llanta" ? it.col : "#c9d2dd"; ctx.fillText(it.t, x + r * 2 + 10, y);
+        x += anchoItem(it) + gap;
+      }
+    }
     // rejilla y ejes
     ctx.lineWidth = 2;
     for (let p = 1; p <= N; p++) {
@@ -1370,6 +1389,12 @@ pre.code{white-space:pre-wrap;word-break:break-all;background:#0d1520;border:1px
       ctx.lineJoin = "round"; ctx.lineCap = "round"; ctx.lineWidth = grosor;
       ctx.strokeStyle = col; ctx.setLineDash(o.dash ? [grosor * 2.6, grosor * 1.9] : []);
       ctx.beginPath(); pts.forEach(([l, p], i) => (i ? ctx.lineTo(X(l), Y(p)) : ctx.moveTo(X(l), Y(p)))); ctx.stroke(); ctx.setLineDash([]);
+      for (const pit of S.pits[o.n] || []) {   // parada en pits: aro blanco en la vuelta en que entró
+        const pl = pit.lap_number, q = o.pts.find(([l]) => l === pl);
+        if (!pl || !q || pl < L0) continue;
+        ctx.beginPath(); ctx.arc(X(pl), Y(q[1]), grosor * 1.05, 0, 7); ctx.fillStyle = "#06080c"; ctx.fill();
+        ctx.lineWidth = Math.max(2, grosor * 0.55); ctx.strokeStyle = "#ffffff"; ctx.stroke();
+      }
       ctx.globalAlpha = 1;
     }
     // etiquetas a la derecha: terminados en su posición; fuera de carrera, abajo
@@ -1380,8 +1405,14 @@ pre.code{white-space:pre-wrap;word-break:break-all;background:#0d1520;border:1px
       ctx.beginPath(); ctx.arc(x, y, r, 0, 7);
       if (o.dash || punto === "hueco") { ctx.fillStyle = "#06080c"; ctx.fill(); ctx.lineWidth = Math.max(3, K.g * 0.7); ctx.strokeStyle = col; ctx.stroke(); }
       else { ctx.fillStyle = col; ctx.fill(); }
+      let tx = x + K.dot * 2;
+      const st = (S.stintAll[o.n] || []).slice(-1)[0], ll = st && LL[String(st.compound || "").toUpperCase()];
+      if (ll && punto !== "hueco") {   // llanta con la que terminó
+        const rr = K.dot * 0.95; ctx.beginPath(); ctx.arc(tx + rr, y, rr, 0, 7); ctx.lineWidth = Math.max(3, rr * 0.5); ctx.strokeStyle = ll[1]; ctx.stroke();
+        tx += rr * 2 + K.dot * 0.9;
+      }
       ctx.fillStyle = col; ctx.font = FN(800, K.et); ctx.textAlign = "left"; ctx.textBaseline = "middle";
-      ctx.fillText(txt, x + K.dot * 2, y);
+      ctx.fillText(txt, tx, y);
       ctx.globalAlpha = 1;
     };
     for (const o of fin) {
