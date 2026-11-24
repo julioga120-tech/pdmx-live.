@@ -244,6 +244,10 @@ body.split{padding-bottom:0}
 }
 .lbrand{display:none}
 @media (orientation:landscape) and (max-height:540px){.lbrand{display:flex;align-items:center;gap:6px;margin-right:10px}.lbrand img{height:22px}}
+.pgsc{overflow-x:auto;-webkit-overflow-scrolling:touch;padding:6px 0 0}.pgsc canvas{display:block}
+.pgch{display:flex;flex-wrap:wrap;gap:6px;padding:10px 12px 4px}
+.pgc{padding:6px 9px;border-radius:6px;border:1px solid var(--line);background:transparent;color:var(--tx);font:800 13px/1 "Barlow Semi Condensed",sans-serif;letter-spacing:.8px;border-left:4px solid var(--c);cursor:pointer}
+.pgc.on{background:color-mix(in srgb,var(--c) 22%,transparent);border-color:var(--c)}
 .aviso{margin:6px 12px 8px;padding:9px 12px;border-radius:6px;border:1px solid var(--line);background:var(--panel);display:flex;flex-direction:column;gap:3px}
 .aviso b{font-size:14px;letter-spacing:1.2px;font-weight:800}
 .aviso span{font-size:12.5px;color:var(--mut);font-weight:600;line-height:1.35}
@@ -302,7 +306,7 @@ pre.code{white-space:pre-wrap;word-break:break-all;background:#0d1520;border:1px
     <div class="chips" id="chips"></div>
   </section>
 
-  <section id="v-laps" class="pad hidden"><div id="lapsv"></div></section>
+  <section id="v-laps" class="pad hidden"><div id="posg"></div><div id="lapsv"></div></section>
   <section id="v-champ" class="pad hidden"><div id="champv"><div class="empty">Cargando campeonato…</div></div></section>
   <section id="v-info" class="pad hidden"><div id="infov"></div></section>
 
@@ -345,7 +349,7 @@ pre.code{white-space:pre-wrap;word-break:break-all;background:#0d1520;border:1px
 
 <script>
 (() => {
-  const BUILD = "3.3 · 2026-11-17";
+  const BUILD = "3.5 · 2026-11-24";
   const API = "https://api.openf1.org";
   const $ = (id) => document.getElementById(id);
   const store = {
@@ -371,7 +375,7 @@ pre.code{white-space:pre-wrap;word-break:break-all;background:#0d1520;border:1px
   const TV = /[?&]tv=1/.test(location.search);
   const mapOn = () => TV || view === "map" || isSplit();
 
-  const fresh = (sess) => ({ sess, wx: null, wxAll: [], drivers: {}, pos: {}, grid: {}, intv: {}, laps: {}, stints: {}, stintAll: {}, rc: [], radios: [], pits: {}, loc: {}, track: null, year: [], champ: null, cur: {} });
+  const fresh = (sess) => ({ sess, wx: null, wxAll: [], drivers: {}, pos: {}, posh: {}, grid: {}, intv: {}, laps: {}, stints: {}, stintAll: {}, rc: [], radios: [], pits: {}, loc: {}, track: null, year: [], champ: null, cur: {} });
 
   // ---------- mezcla de datos ----------
   // REST y MQTT llegan desordenados y repetidos: nunca se pisa un dato con uno más viejo.
@@ -379,6 +383,12 @@ pre.code{white-space:pre-wrap;word-break:break-all;background:#0d1520;border:1px
     if (!n || !pos) return;
     const at = (S.posAt ||= {}), t = date ? Date.parse(date) : 0;
     if (t && S.chqT && isRace() && t > S.chqT + 240000) return; // ya todos cruzaron la meta: lo que llegue después (autos estacionándose) no cambia el resultado
+    if (t) {  // historial para la gráfica de posiciones por vuelta
+      const h = (S.posh[n] ||= []);
+      if (!h.length || t > h[h.length - 1][0]) { if (!h.length || h[h.length - 1][1] !== pos) h.push([t, pos]); }
+      else if (!h.some((x) => x[0] === t)) { h.push([t, pos]); h.sort((a, b) => a[0] - b[0]); }
+      S.posVer = (S.posVer || 0) + 1;
+    }
     if (t && at[n] && t < at[n]) return;
     S.pos[n] = pos; if (t) at[n] = t;
   }
@@ -466,6 +476,7 @@ pre.code{white-space:pre-wrap;word-break:break-all;background:#0d1520;border:1px
   // Entres cuando entres, bajas la foto (todo lo que ha pasado) y sigues los pedacitos.
   const DATA = "d/";
   let HEAD = null, needSnap = true, netFails = 0, misses = 0, lastData = 0, snapAt = 0, followT = 0, following = false;
+  let headAt = 0, volvioAt = 0;   // última vez que se leyó el estado del servidor · cuándo volviste a la página
   async function getJSON(path) {
     const ac = new AbortController(), to = setTimeout(() => ac.abort(), 12000);
     try {
@@ -481,13 +492,14 @@ pre.code{white-space:pre-wrap;word-break:break-all;background:#0d1520;border:1px
     const j = await getJSON("snap.json?t=" + NOW());
     if (!j) throw new Error("sin datos");
     HEAD = { gen: j.gen, seq: j.seq, estado: j.estado, mqtt: j.mqtt, key: j.key, on: j.on, dato: j.dato, err: j.err, prox: j.prox, t: j.t, at: Date.now() };
-    snapAt = NOW();
+    snapAt = NOW(); headAt = NOW();
     if (!j.session) { S = null; return; }
     const old = S;
     S = fresh(j.session);
     S.year = j.year || []; S.next = j.next || null; S.champ = j.champ || null; S.result = j.result && j.result.length >= 10 ? j.result : null;
     for (const d of j.drivers || []) S.drivers[d.driver_number] = d;
     for (const n in j.grid || {}) S.grid[n] = j.grid[n];
+    for (const n in j.posh || {}) S.posh[n] = (j.posh[n] || []).slice();
     if (j.track && j.track.length > 50) S.track = prepTrack(j.track);
     quiet = true;
     try {
@@ -519,15 +531,22 @@ pre.code{white-space:pre-wrap;word-break:break-all;background:#0d1520;border:1px
             S.seq = c.s; lastData = NOW();
           }
         }
-        if (got) { misses = 0; wait = got >= 60 ? 0 : 900; }
+        if (got) {
+          misses = 0; wait = got >= 60 ? 0 : 900;
+          // aunque lleguen datos sin parar, el estado del servidor (ON/OFF, fallas) se revisa cada 12 s
+          if (NOW() - headAt > 12000) {
+            const h = await getJSON("head.json?t=" + NOW());
+            if (h) { const cambio = h.estado !== HEAD.estado; HEAD = { ...h, at: Date.now() }; headAt = NOW(); if (h.gen !== S.gen || cambio || h.seq > S.seq + 120) needSnap = true; }
+          }
+        }
         else {
           misses++;
           if (!vivo || misses % 3 === 0) {
             const h = await getJSON("head.json?t=" + NOW());
             if (h) {
               const cambio = h.estado !== HEAD.estado;
-              HEAD = { ...h, at: Date.now() };
-              if (h.gen !== S.gen || h.seq < S.seq || h.seq > S.seq + 600 || cambio) needSnap = true;
+              HEAD = { ...h, at: Date.now() }; headAt = NOW();
+              if (h.gen !== S.gen || h.seq < S.seq || h.seq > S.seq + 120 || cambio) needSnap = true;
               else if (h.seq > S.seq) misses = 0;
             }
           }
@@ -1176,7 +1195,123 @@ pre.code{white-space:pre-wrap;word-break:break-all;background:#0d1520;border:1px
       h += `<div class="card"><h2>PARADAS EN PITS <small>${fastest ? "MÁS RÁPIDA " + fastest[1].stop_duration.toFixed(1) + " s · " + esc(S.drivers[fastest[0]].name_acronym) : ""}</small></h2>` + pl.map(([n, p]) => li(p.lap_number || "", n, name(n), `Vuelta ${p.lap_number || "—"}`, p.stop_duration ? p.stop_duration.toFixed(1) + " s" : p.pit_duration ? p.pit_duration.toFixed(1) + " s" : "—", p.stop_duration ? "PARADA" : "CALLE")).join("") + `</div>`;
     }
     $("lapsv").innerHTML = h;
+    renderPos();
   }
+
+  // ---------- gráfica de posiciones por vuelta (carrera y sprint) ----------
+  // Cada línea es un piloto; cada punto, su posición al cruzar la meta en esa vuelta. Vuelta 0 = parrilla.
+  const posEn = (n, t) => { const h = S.posh[n]; if (!h || !h.length || t < h[0][0]) return null; let lo = 0, hi = h.length - 1; while (lo < hi) { const m = (lo + hi + 1) >> 1; if (h[m][0] <= t) lo = m; else hi = m - 1; } return h[lo][1]; };
+  function datosPos() {
+    const out = [];
+    let maxL = 0;
+    for (const n in S.drivers) {
+      const L = S.laps[n] || {}, pts = [];
+      const g = S.grid[n]; if (g) pts.push([0, g]);
+      const nums = Object.keys(L).map(Number).sort((a, b) => a - b);
+      for (const l of nums) {
+        const sig = L[l + 1] && L[l + 1].date_start ? Date.parse(L[l + 1].date_start) : null;
+        const fin = sig || (L[l].date_start && L[l].lap_duration ? Date.parse(L[l].date_start) + L[l].lap_duration * 1000 : null);
+        if (!fin) continue;
+        const p = posEn(n, fin + 1500);   // la posición se actualiza un instante después de cruzar la meta
+        if (p) { pts.push([l, p]); maxL = Math.max(maxL, l); }
+      }
+      if (pts.length) out.push({ n: +n, pts, d: S.drivers[n] });
+    }
+    // compañeros de equipo: el segundo va punteado
+    const vistos = {};
+    for (const o of out.sort((a, b) => (a.pts[a.pts.length - 1][1]) - (b.pts[b.pts.length - 1][1]))) { const t = o.d.team_name || o.n; o.dash = !!vistos[t]; vistos[t] = 1; }
+    return { out, maxL, N: Math.max(20, Object.keys(S.drivers).length) };
+  }
+  let posSel = new Set(), posVerPint = -1;
+  function pintarPos(ctx, W, H, D, img) {
+    const F = img ? 1.6 : 1, pad = { l: 46 * F, r: 64 * F, t: (img ? 150 : 18) * F / (img ? 1.6 : 1), b: 34 * F };
+    if (img) { pad.t = 168; pad.b = 70; }
+    const gw = W - pad.l - pad.r, gh = H - pad.t - pad.b;
+    const X = (l) => pad.l + (D.maxL ? (l / D.maxL) * gw : 0), Y = (p) => pad.t + ((p - 1) / Math.max(1, D.N - 1)) * gh;
+    const font = (w, sz) => `${w} ${sz}px "Barlow Semi Condensed","Arial Narrow",Arial,sans-serif`;
+    ctx.fillStyle = "#070a10"; ctx.fillRect(0, 0, W, H);
+    // rejilla
+    ctx.lineWidth = 1; ctx.textBaseline = "middle";
+    for (let p = 1; p <= D.N; p++) {
+      ctx.strokeStyle = p === 1 || p === 10 ? "#26313f" : "#141b25"; ctx.beginPath(); ctx.moveTo(pad.l, Y(p)); ctx.lineTo(pad.l + gw, Y(p)); ctx.stroke();
+      ctx.fillStyle = "#6f7d90"; ctx.font = font(700, 12 * F); ctx.textAlign = "right"; ctx.fillText("P" + p, pad.l - 10 * F, Y(p));
+    }
+    const paso = D.maxL > 50 ? 10 : D.maxL > 20 ? 5 : D.maxL > 10 ? 2 : 1;
+    ctx.textAlign = "center"; ctx.textBaseline = "top";
+    for (let l = 0; l <= D.maxL; l += paso) {
+      ctx.strokeStyle = "#141b25"; ctx.beginPath(); ctx.moveTo(X(l), pad.t); ctx.lineTo(X(l), pad.t + gh); ctx.stroke();
+      ctx.fillStyle = "#6f7d90"; ctx.font = font(700, 12 * F); ctx.fillText(l === 0 ? "SAL" : String(l), X(l), pad.t + gh + 10 * F);
+    }
+    ctx.fillStyle = "#56647a"; ctx.font = font(700, 11 * F); ctx.fillText("VUELTA", pad.l + gw / 2, pad.t + gh + 24 * F);
+    // líneas
+    const hay = posSel.size > 0;
+    const orden = D.out.slice().sort((a, b) => (posSel.has(a.n) ? 1 : 0) - (posSel.has(b.n) ? 1 : 0));
+    for (const o of orden) {
+      const col = "#" + String(o.d.team_colour || "8899aa").replace("#", ""), sel = posSel.has(o.n);
+      ctx.globalAlpha = hay && !sel ? 0.18 : 1;
+      ctx.strokeStyle = col; ctx.lineWidth = (sel ? 3.2 : 2) * F; ctx.setLineDash(o.dash ? [6 * F, 4 * F] : []);
+      ctx.lineJoin = "round"; ctx.beginPath();
+      o.pts.forEach(([l, p], i) => (i ? ctx.lineTo(X(l), Y(p)) : ctx.moveTo(X(l), Y(p))));
+      ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle = col;
+      for (const [l, p] of o.pts) { ctx.beginPath(); ctx.arc(X(l), Y(p), (sel ? 3.2 : 2.3) * F, 0, 7); ctx.fill(); }
+      const [ul, up] = o.pts[o.pts.length - 1];
+      ctx.font = font(800, 12.5 * F); ctx.textAlign = "left"; ctx.textBaseline = "middle";
+      ctx.fillText(o.d.name_acronym || String(o.n), X(ul) + 8 * F, Y(up));
+      const [, pp] = o.pts[0];
+      if (o.pts[0][0] === 0 && img) { ctx.textAlign = "right"; ctx.fillStyle = col; }
+    }
+    ctx.globalAlpha = 1;
+    if (img) {
+      const s = S.sess;
+      ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+      ctx.fillStyle = "#00d8ff"; ctx.fillRect(0, 0, 10, H);
+      ctx.fillStyle = "#eef3f8"; ctx.font = font(800, 54); ctx.fillText("POSICIONES POR VUELTA", 70, 92);
+      ctx.fillStyle = "#8593a6"; ctx.font = font(700, 30);
+      ctx.fillText([String(s.location || "").toUpperCase(), sName(s).toUpperCase(), (s.year || "")].filter(Boolean).join(" · ") + "   ·   VUELTA " + D.maxL + (raceLaps().tot ? "/" + raceLaps().tot : ""), 72, 136);
+      ctx.textAlign = "right"; ctx.fillStyle = "#eef3f8"; ctx.font = font(800, 34); ctx.fillText("PURE DRIVING MX", W - 70, 92);
+      ctx.fillStyle = "#56647a"; ctx.font = font(700, 20); ctx.fillText("LIVE TIMING · DATOS OPENF1 (NO OFICIAL)", W - 70, 124);
+    }
+  }
+  function renderPos(forzar) {
+    const box = $("posg");
+    if (!S || !isRace()) { box.innerHTML = ""; posVerPint = -1; return; }
+    const D = datosPos();
+    if (!D.out.length || D.maxL < 1) { box.innerHTML = ""; posVerPint = -1; return; }
+    const ver = (S.posVer || 0) + ":" + D.maxL + ":" + [...posSel].join(",");
+    if (!forzar && ver === posVerPint && box.firstChild) return;
+    posVerPint = ver;
+    const sc = box.querySelector(".pgsc"), left = sc ? sc.scrollLeft : null;
+    const ancho = Math.max(box.clientWidth || 340, 46 + 64 + D.maxL * 11), alto = 26 * Math.max(20, D.N) * 0.62 + 52;
+    const chips = D.out.slice().sort((a, b) => a.pts[a.pts.length - 1][1] - b.pts[b.pts.length - 1][1])
+      .map((o) => `<button class="pgc${posSel.has(o.n) ? " on" : ""}" data-pn="${o.n}" style="--c:#${esc(String(o.d.team_colour || "8899aa").replace("#", ""))}">${esc(o.d.name_acronym || o.n)}</button>`).join("");
+    box.innerHTML = `<div class="card"><h2>POSICIONES POR VUELTA <small>TOCA PILOTOS PARA RESALTARLOS</small></h2>`
+      + `<div class="pgsc"><canvas id="pgcv"></canvas></div><div class="pgch">${chips}</div>`
+      + `<div class="opt" style="padding:4px 12px 12px">${posSel.size ? '<button data-pclr="1">VER TODOS</button>' : ""}<button data-pimg="1">GUARDAR COMO IMAGEN</button></div></div>`;
+    const cv = $("pgcv"), dpr = Math.min(3, window.devicePixelRatio || 1);
+    cv.width = Math.round(ancho * dpr); cv.height = Math.round(alto * dpr); cv.style.width = ancho + "px"; cv.style.height = alto + "px";
+    const ctx = cv.getContext("2d"); ctx.scale(dpr, dpr);
+    pintarPos(ctx, ancho, alto, D, false);
+    const nsc = box.querySelector(".pgsc");
+    if (left != null) nsc.scrollLeft = left; else nsc.scrollLeft = nsc.scrollWidth;   // de entrada se ve lo más reciente
+  }
+  async function imagenPos() {
+    const D = datosPos(), W = 1920, H = 1080;
+    const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+    pintarPos(cv.getContext("2d"), W, H, D, true);
+    const blob = await new Promise((r) => cv.toBlob(r, "image/png"));
+    const nombre = ("posiciones-" + (S.sess.location || "") + "-" + sName(S.sess) + ".png").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9.]+/g, "-");
+    const file = new File([blob], nombre, { type: "image/png" });
+    try { if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: "Posiciones por vuelta" }); return; } } catch (e) { if (e && e.name === "AbortError") return; }
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = nombre; document.body.appendChild(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
+  }
+  $("posg").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-pn]");
+    if (b) { const n = +b.dataset.pn; posSel.has(n) ? posSel.delete(n) : posSel.add(n); renderPos(true); return; }
+    if (e.target.closest("[data-pclr]")) { posSel.clear(); renderPos(true); return; }
+    if (e.target.closest("[data-pimg]")) imagenPos();
+  });
 
   function renderChamp() {
     if (!S) return;
@@ -1379,13 +1514,16 @@ pre.code{white-space:pre-wrap;word-break:break-all;background:#0d1520;border:1px
   // Una sola fuente: head.json del servidor. Si no llega o es viejo, el problema es la conexión o el servidor.
   function estadoPublico() {
     const now = Date.now();
-    if (netFails >= 3) return navigator.onLine === false
+    if (netFails >= 3 && now - volvioAt > 20000) return navigator.onLine === false
       ? { k: "net", tag: "SIN INTERNET", cls: "err", t: "TU CELULAR NO TIENE INTERNET", d: "En cuanto vuelva la señal, la página se pone al día sola." }
       : { k: "srv", tag: "SIN RESPUESTA", cls: "err", t: "EL LIVE TIMING NO ESTÁ RESPONDIENDO", d: "Puede ser una falla del servidor o de tu red. La página sigue intentando y se pone al día sola; los últimos datos se quedan en pantalla." };
     if (!HEAD) return { k: "load", tag: "CONECTANDO…", cls: "warn", t: "", d: "" };
+    // el servidor está vivo si su estado es reciente o si siguen llegando datos (reloj corregido con el del servidor);
+    // al volver a la página se dan 20 s para ponerse al día antes de alarmar
+    const ultimo = Math.max(HEAD.t || 0, lastData || 0), recien = now - volvioAt < 20000;
     const viejo = HEAD.at && now - HEAD.at > 45000 && netFails > 0;
-    if (viejo || (HEAD.t && now - HEAD.t > (HEAD.on ? 60000 : 180000)))
-      return { k: "srv", tag: "SIN RESPUESTA", cls: "err", t: "EL SERVIDOR NO ESTÁ RESPONDIENDO", d: "Estamos trabajando para restablecerlo. Los últimos datos se quedan en pantalla." };
+    if (!recien && (viejo || (ultimo && NOW() - ultimo > (HEAD.on ? 75000 : 180000))))
+      return { k: "srv", tag: "SIN RESPUESTA", cls: "err", t: "EL LIVE TIMING NO ESTÁ RESPONDIENDO", d: "La página sigue intentando y se pone al día sola; los últimos datos se quedan en pantalla." };
     if (HEAD.estado === "config" || HEAD.err === "cuenta")
       return { k: "mant", tag: "EN MANTENIMIENTO", cls: "err", t: "LIVE TIMING EN MANTENIMIENTO", d: "Vuelve en unos minutos." };
     if (HEAD.on) {
@@ -1426,7 +1564,7 @@ pre.code{white-space:pre-wrap;word-break:break-all;background:#0d1520;border:1px
   setInterval(() => { tickClock(); paintStatus(); sinSesion(); }, 1000);
   setInterval(() => { if (S && view === "info") renderInfo(); }, 15000);
   setInterval(() => { if (S) renderHead(); }, 30000);
-  document.addEventListener("visibilitychange", () => { if (!document.hidden) { follow(); wake(); } });
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) { volvioAt = Date.now(); headAt = 0; follow(); wake(); } });
 
   // ---------- vistas ----------
   const VIEWS = ["tower", "map", "laps", "champ", "info", "rc", "set"];

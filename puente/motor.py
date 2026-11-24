@@ -228,6 +228,7 @@ class Motor:
     def _vaciar(self):
         self.drivers, self.drivers_de = {}, ""
         self.pos, self.intv, self.laps, self.stints, self.pits = {}, {}, {}, {}, {}
+        self.posh = {}   # historial de posiciones por piloto: [[ms, posición], …] (para la gráfica por vuelta)
         self.rc, self.rc_k, self.wx, self.wx_k, self.radios, self.rad_k = [], set(), [], set(), [], set()
         self.loc = {}
         self.grid, self.result, self.track = {}, None, None
@@ -315,6 +316,14 @@ class Motor:
                 self.pend_loc.append([n, t, r["x"], r["y"]])
             return
         if topic == "position":
+            if n and r.get("position") and r.get("date"):
+                h, t = self.posh.setdefault(n, []), ms(r.get("date"))
+                if not h or t > h[-1][0]:
+                    if not h or h[-1][1] != r["position"]:
+                        h.append([t, r["position"]])
+                elif not any(x[0] == t for x in h):
+                    h.append([t, r["position"]])
+                    h.sort()
             o = self.pos.get(n)
             if n and r.get("position") and (not o or (r.get("date") or "") > (o.get("date") or "")):
                 self.pos[n] = r
@@ -739,7 +748,7 @@ class Motor:
                 L.append([n, t, x, y])
         return dict(self._head(now), session=self.sess, next=self.siguiente(now), year=self.year, drivers=list(self.drivers.values()),
                     grid=self.grid, result=self.result, champ=getattr(self, "champ", None), track=self.track,
-                    position=list(self.pos.values()), intervals=list(self.intv.values()),
+                    position=list(self.pos.values()), posh=self.posh, intervals=list(self.intv.values()),
                     laps=[l for m in self.laps.values() for l in m.values()], race_control=self.rc,
                     stints=[s for m in self.stints.values() for s in m.values()], pit=[p for a in self.pits.values() for p in a],
                     weather=self.wx[-300:], team_radio=self.radios[-80:], L=L, aviso=self.err if not self.leer_cfg() else "")
@@ -797,8 +806,19 @@ class Motor:
             self._campeonato()
         self._publicar(time.time())
 
+    def _publicador(self):
+        """Publica el estado cada segundo en su propio hilo: aunque un repaso a OpenF1 tarde
+        (límite de consultas, OpenF1 lento), la página nunca ve al servidor como caído."""
+        while True:
+            try:
+                self._publicar(time.time())
+            except Exception as e:
+                self.log("error al publicar: %r" % e)
+            time.sleep(1.0)
+
     def correr(self):
         os.makedirs(self.pub, exist_ok=True)
+        threading.Thread(target=self._publicador, daemon=True).start()
         while True:
             try:
                 self.paso()
