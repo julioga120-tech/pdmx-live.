@@ -245,6 +245,7 @@ body.split{padding-bottom:0}
 .lbrand{display:none}
 @media (orientation:landscape) and (max-height:540px){.lbrand{display:flex;align-items:center;gap:6px;margin-right:10px}.lbrand img{height:22px}}
 .pgsc{overflow-x:auto;-webkit-overflow-scrolling:touch;padding:6px 0 0}.pgsc canvas{display:block}
+.pgop{padding:6px 12px 0}
 .pgch{display:flex;flex-wrap:wrap;gap:6px;padding:10px 12px 4px}
 .pgc{padding:6px 9px;border-radius:6px;border:1px solid var(--line);background:transparent;color:var(--tx);font:800 13px/1 "Barlow Semi Condensed",sans-serif;letter-spacing:.8px;border-left:4px solid var(--c);cursor:pointer}
 .pgc.on{background:color-mix(in srgb,var(--c) 22%,transparent);border-color:var(--c)}
@@ -349,7 +350,7 @@ pre.code{white-space:pre-wrap;word-break:break-all;background:#0d1520;border:1px
 
 <script>
 (() => {
-  const BUILD = "3.5 · 2026-11-24";
+  const BUILD = "3.6 · 2026-11-24";
   const API = "https://api.openf1.org";
   const $ = (id) => document.getElementById(id);
   const store = {
@@ -1208,7 +1209,10 @@ pre.code{white-space:pre-wrap;word-break:break-all;background:#0d1520;border:1px
       const L = S.laps[n] || {}, pts = [];
       const g = S.grid[n]; if (g) pts.push([0, g]);
       const nums = Object.keys(L).map(Number).sort((a, b) => a - b);
+      const tot = raceLaps().tot || 999;
       for (const l of nums) {
+        if (l > tot) break;                                                      // vuelta de regreso después de la meta
+        if (S.chqT && L[l].date_start && Date.parse(L[l].date_start) > S.chqT) break;
         const sig = L[l + 1] && L[l + 1].date_start ? Date.parse(L[l + 1].date_start) : null;
         const fin = sig || (L[l].date_start && L[l].lap_duration ? Date.parse(L[l].date_start) + L[l].lap_duration * 1000 : null);
         if (!fin) continue;
@@ -1287,6 +1291,8 @@ pre.code{white-space:pre-wrap;word-break:break-all;background:#0d1520;border:1px
       .map((o) => `<button class="pgc${posSel.has(o.n) ? " on" : ""}" data-pn="${o.n}" style="--c:#${esc(String(o.d.team_colour || "8899aa").replace("#", ""))}">${esc(o.d.name_acronym || o.n)}</button>`).join("");
     box.innerHTML = `<div class="card"><h2>POSICIONES POR VUELTA <small>TOCA PILOTOS PARA RESALTARLOS</small></h2>`
       + `<div class="pgsc"><canvas id="pgcv"></canvas></div><div class="pgch">${chips}</div>`
+      + `<div class="seg pgop"><button data-pf="v" class="${imgFmt === "v" ? "on" : ""}">9:16</button><button data-pf="c" class="${imgFmt === "c" ? "on" : ""}">1:1</button><button data-pf="h" class="${imgFmt === "h" ? "on" : ""}">16:9</button></div>`
+      + `<div class="seg pgop"><button data-pr="ult" class="${imgRango === "ult" ? "on" : ""}">ÚLTIMAS 10 VUELTAS</button><button data-pr="todo" class="${imgRango === "todo" ? "on" : ""}">TODA LA CARRERA</button></div>`
       + `<div class="opt" style="padding:4px 12px 12px">${posSel.size ? '<button data-pclr="1">VER TODOS</button>' : ""}<button data-pimg="1">GUARDAR COMO IMAGEN</button></div></div>`;
     const cv = $("pgcv"), dpr = Math.min(3, window.devicePixelRatio || 1);
     cv.width = Math.round(ancho * dpr); cv.height = Math.round(alto * dpr); cv.style.width = ancho + "px"; cv.style.height = alto + "px";
@@ -1295,12 +1301,109 @@ pre.code{white-space:pre-wrap;word-break:break-all;background:#0d1520;border:1px
     const nsc = box.querySelector(".pgsc");
     if (left != null) nsc.scrollLeft = left; else nsc.scrollLeft = nsc.scrollWidth;   // de entrada se ve lo más reciente
   }
+  let imgFmt = "v", imgRango = "ult";
+  const FN = (w, sz) => `${w} ${sz}px "Barlow Semi Condensed","Arial Narrow",Arial,sans-serif`;
+  function espaciado(ctx, txt, x, y, sp) {   // texto con letras separadas (centrado en x)
+    const ws = [...txt].map((c) => ctx.measureText(c).width), tot = ws.reduce((a, b) => a + b, 0) + sp * (txt.length - 1);
+    let cx = x - tot / 2; ctx.textAlign = "left";
+    [...txt].forEach((c, i) => { ctx.fillText(c, cx, y); cx += ws[i] + sp; });
+  }
+  const MED = {
+    v: { top: 470, bot: 240, izq: 80, der: 300, t1: 92, t1y: 150, t2: 42, t2y: 225, t3: 64, t3y: 318, ej: 40, et: 46, g: 7, dot: 13, p1: 44, p1y: 86, p2: 28, p2y: 40 },
+    c: { top: 255, bot: 150, izq: 66, der: 250, t1: 64, t1y: 88, t2: 28, t2y: 140, t3: 44, t3y: 202, ej: 26, et: 30, g: 5, dot: 9, p1: 30, p1y: 52, p2: 19, p2y: 22 },
+    h: { top: 250, bot: 140, izq: 90, der: 330, t1: 78, t1y: 98, t2: 36, t2y: 152, t3: 50, t3y: 212, ej: 30, et: 36, g: 6, dot: 11, p1: 34, p1y: 50, p2: 22, p2y: 18 },
+  };
+  function pintarImagen(ctx, W, H, D, fmtI, ultimas) {
+    const K = MED[fmtI] || MED.v, vert = fmtI === "v";
+    const s = S.sess, rl = raceLaps(), maxL = D.maxL;
+    const L0 = ultimas ? Math.max(0, maxL - 10) : 0;
+    const res = {}; for (const r of S.result || []) res[r.driver_number] = r;
+    const fuera = retiredSet();
+    // quién terminó y quién quedó fuera (abandono / no largó)
+    const fin = [], dnf = [];
+    for (const o of D.out) {
+      const r = res[o.n] || {}, ultL = o.pts[o.pts.length - 1][0];
+      if (r.dns || o.pts.every(([l]) => l === 0)) dnf.push({ o, tag: "DNS", l: -1 });
+      else if (r.dnf || r.dsq || fuera.has(o.n)) dnf.push({ o, tag: r.dsq ? "DSQ" : "DNF", l: ultL });
+      else fin.push(o);
+    }
+    for (const n in S.drivers) if (!D.out.some((o) => o.n === +n)) dnf.push({ o: { n: +n, d: S.drivers[n], pts: [], dash: false }, tag: "DNS", l: -1 });
+    dnf.sort((a, b) => b.l - a.l);
+    const N = Math.max(20, Object.keys(S.drivers).length);
+    // medidas
+    const { top, bot, izq, der } = K;
+    const gw = W - izq - der, gh = H - top - bot;
+    const X = (l) => izq + (maxL > L0 ? ((l - L0) / (maxL - L0)) * gw : gw);
+    const Y = (p) => top + ((p - 1) / (N - 1)) * gh;
+    ctx.fillStyle = "#06080c"; ctx.fillRect(0, 0, W, H);
+    // encabezado
+    ctx.textBaseline = "alphabetic"; ctx.fillStyle = "#eef3f8";
+    let t1 = K.t1; ctx.font = FN(800, t1);
+    while (t1 > 30 && ctx.measureText("POSICIONES POR VUELTA").width + 3 * 20 > W - 90) ctx.font = FN(800, (t1 -= 2));   // el título siempre cabe
+    espaciado(ctx, "POSICIONES POR VUELTA", W / 2, K.t1y, 3);
+    ctx.fillStyle = "#9aa6b5"; ctx.font = FN(700, K.t2);
+    const lugar = String(s.location || s.circuit_short_name || "").toUpperCase();
+    espaciado(ctx, ("GRAN PREMIO DE " + lugar + (isSprint() ? " · SPRINT" : "") + " · " + (s.year || "")).toUpperCase(), W / 2, K.t2y, 5);
+    ctx.fillStyle = "#ff3b4f"; ctx.font = FN(800, K.t3);
+    espaciado(ctx, "VUELTA " + maxL + (rl.tot ? " / " + rl.tot : ""), W / 2, K.t3y, 5);
+    // rejilla y ejes
+    ctx.lineWidth = 2;
+    for (let p = 1; p <= N; p++) {
+      ctx.strokeStyle = "#11161e"; ctx.beginPath(); ctx.moveTo(izq, Y(p)); ctx.lineTo(izq + gw, Y(p)); ctx.stroke();
+      ctx.fillStyle = "#c9d2dd"; ctx.font = FN(700, K.ej); ctx.textAlign = "right"; ctx.textBaseline = "middle";
+      ctx.fillText(String(p), izq - K.ej * 0.55, Y(p));
+    }
+    const rango = maxL - L0, paso = rango > 50 ? 10 : rango > 20 ? 5 : rango > 12 ? 2 : 5;
+    ctx.fillStyle = "#7d8a9b"; ctx.font = FN(800, K.ej); ctx.textAlign = "center"; ctx.textBaseline = "top";
+    for (let l = Math.ceil(L0 / paso) * paso; l <= maxL; l += paso) ctx.fillText(l === 0 ? "SALIDA" : "V" + l, X(l), top + gh + K.ej * 0.65);
+    // líneas: primero los de abajo, al final los de arriba (así se ven encima)
+    const grosor = K.g;
+    const dib = fin.concat(dnf.map((x) => x.o)).filter((o) => o.pts.length).sort((a, b) => b.pts[b.pts.length - 1][1] - a.pts[a.pts.length - 1][1]);
+    for (const o of dib) {
+      let pts = o.pts.filter(([l]) => l >= L0);
+      const antes = o.pts.filter(([l]) => l < L0).pop();
+      if (antes && pts.length && pts[0][0] > L0) pts.unshift([L0, antes[1]]);
+      if (!pts.length) continue;
+      const col = "#" + String(o.d.team_colour || "8899aa").replace("#", "");
+      const sel = posSel.size ? posSel.has(o.n) : true;
+      ctx.globalAlpha = sel ? 1 : 0.16;
+      ctx.lineJoin = "round"; ctx.lineCap = "round"; ctx.lineWidth = grosor;
+      ctx.strokeStyle = col; ctx.setLineDash(o.dash ? [grosor * 2.6, grosor * 1.9] : []);
+      ctx.beginPath(); pts.forEach(([l, p], i) => (i ? ctx.lineTo(X(l), Y(p)) : ctx.moveTo(X(l), Y(p)))); ctx.stroke(); ctx.setLineDash([]);
+      ctx.globalAlpha = 1;
+    }
+    // etiquetas a la derecha: terminados en su posición; fuera de carrera, abajo
+    const etiqueta = (o, y, txt, x, punto, alpha) => {
+      const col = "#" + String(o.d.team_colour || "8899aa").replace("#", "");
+      ctx.globalAlpha = alpha;
+      const r = K.dot;
+      ctx.beginPath(); ctx.arc(x, y, r, 0, 7);
+      if (o.dash || punto === "hueco") { ctx.fillStyle = "#06080c"; ctx.fill(); ctx.lineWidth = Math.max(3, K.g * 0.7); ctx.strokeStyle = col; ctx.stroke(); }
+      else { ctx.fillStyle = col; ctx.fill(); }
+      ctx.fillStyle = col; ctx.font = FN(800, K.et); ctx.textAlign = "left"; ctx.textBaseline = "middle";
+      ctx.fillText(txt, x + K.dot * 2, y);
+      ctx.globalAlpha = 1;
+    };
+    for (const o of fin) {
+      const [l, p] = o.pts[o.pts.length - 1], r = res[o.n];
+      const oficial = r && r.position && r.position !== p ? " → P" + r.position : "";
+      etiqueta(o, Y(p), (o.d.name_acronym || String(o.n)) + oficial, X(Math.max(l, L0)), null, posSel.size && !posSel.has(o.n) ? 0.3 : 1);
+    }
+    let slot = N;
+    for (const x of dnf.slice().reverse()) { etiqueta(x.o, Y(slot), (x.o.d.name_acronym || String(x.o.n)) + " " + x.tag, izq + gw, "hueco", 1); slot--; }
+    // pie
+    ctx.fillStyle = "#c9d2dd"; ctx.font = FN(800, K.p1); ctx.textBaseline = "alphabetic";
+    espaciado(ctx, "PURE DRIVING MX", W / 2, H - K.p1y, 8);
+    ctx.fillStyle = "#5d6a7b"; ctx.font = FN(700, K.p2);
+    espaciado(ctx, (location.host || "LIVE TIMING").toUpperCase() + " · DATOS OPENF1 · NO OFICIAL", W / 2, H - K.p2y, 3);
+  }
   async function imagenPos() {
-    const D = datosPos(), W = 1920, H = 1080;
+    try { await document.fonts.load('800 60px "Barlow Semi Condensed"'); } catch {}
+    const D = datosPos(), W = imgFmt === "h" ? 1920 : 1080, H = imgFmt === "v" ? 1920 : 1080;
     const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
-    pintarPos(cv.getContext("2d"), W, H, D, true);
+    pintarImagen(cv.getContext("2d"), W, H, D, imgFmt, imgRango === "ult");
     const blob = await new Promise((r) => cv.toBlob(r, "image/png"));
-    const nombre = ("posiciones-" + (S.sess.location || "") + "-" + sName(S.sess) + ".png").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9.]+/g, "-");
+    const nombre = ("posiciones-" + (S.sess.location || "") + "-" + sName(S.sess) + (imgRango === "ult" ? "-ultimas-10" : "") + "-" + { v: "9x16", c: "1x1", h: "16x9" }[imgFmt] + ".png").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9.]+/g, "-");
     const file = new File([blob], nombre, { type: "image/png" });
     try { if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: "Posiciones por vuelta" }); return; } } catch (e) { if (e && e.name === "AbortError") return; }
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = nombre; document.body.appendChild(a); a.click();
@@ -1310,6 +1413,8 @@ pre.code{white-space:pre-wrap;word-break:break-all;background:#0d1520;border:1px
     const b = e.target.closest("[data-pn]");
     if (b) { const n = +b.dataset.pn; posSel.has(n) ? posSel.delete(n) : posSel.add(n); renderPos(true); return; }
     if (e.target.closest("[data-pclr]")) { posSel.clear(); renderPos(true); return; }
+    const f = e.target.closest("[data-pf]"); if (f) { imgFmt = f.dataset.pf; renderPos(true); return; }
+    const r = e.target.closest("[data-pr]"); if (r) { imgRango = r.dataset.pr; renderPos(true); return; }
     if (e.target.closest("[data-pimg]")) imagenPos();
   });
 
